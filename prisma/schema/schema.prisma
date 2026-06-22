@@ -11,3 +11,210 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+// --- ENUMS ---
+
+enum Role {
+  MEMBER
+  CONCIERGE
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING_PAYMENT // Status before the Stripe $199 auth is captured
+  ACTIVE
+  INACTIVE
+}
+
+enum TripType {
+  ONE_WAY
+  ROUND_TRIP
+}
+
+enum OpportunityStatus {
+  DRAFT
+  OPEN_FOR_RESERVATION
+  CONFIRMED
+  COMPLETED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+
+// --- MODELS ---
+
+model User {
+  id               String          @id @default(uuid())
+  email            String          @unique
+  password         String
+  firstName        String?
+  lastName         String?
+  phone            String?
+  address          String?
+  city             String?
+  state            String?
+  zipCode          String?
+  
+  role             Role            @default(MEMBER)
+  status           AccountStatus   @default(PENDING_PAYMENT)
+  stripeCustomerId String?         @unique // For the registration integration
+  
+  // Relations
+  reservations     Reservation[]
+  preferences      TravelPreference[]
+  
+  // Messaging relations
+  sentMessages     Message[]       @relation("SentMessages")
+  receivedMessages Message[]       @relation("ReceivedMessages")
+  
+  notifications    Notification[]
+  
+  // For Concierge/Admin tracking
+  opportunitiesCreated Opportunity[]
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Composite indexes for fast directory and authentication lookups
+  @@index([email])
+  @@index([role, status])
+}
+model Opportunity {
+  id               String            @id @default(uuid())
+  origin           String
+  destination      String
+  tripType         TripType
+  departureDate    DateTime
+  returnDate       DateTime?
+  estimatedPrice   Decimal           @db.Decimal(10, 2)
+  aircraftType     String?
+  totalCapacity    Int
+  status           OpportunityStatus @default(DRAFT)
+  
+  // Tracking which staff member created this flight
+  createdBy        User              @relation(fields: [createdById], references: [id])
+  createdById      String
+
+  reservations     Reservation[]
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // High-traffic querying indexes based on the admin dashboard
+  @@index([origin, destination])
+  @@index([departureDate])
+  @@index([status])
+}
+// BRIDGE TABLE 1: Explicit Many-to-Many between User and Opportunity
+model Reservation {
+  id               String            @id @default(uuid())
+  
+  member           User              @relation(fields: [memberId], references: [id])
+  memberId         String
+  
+  opportunity      Opportunity       @relation(fields: [opportunityId], references: [id])
+  opportunityId    String
+  
+  status           ReservationStatus @default(PENDING)
+  specialRequests  String?           @db.Text
+  
+  // Stripe tracking for Auth/Capture process
+  paymentIntentId  String?           @unique 
+
+  // Explicit Bridge to Passengers
+  passengers       ReservationPassenger[]
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([memberId])
+  @@index([opportunityId])
+  @@index([status])
+}
+
+model Passenger {
+  id               String                 @id @default(uuid())
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  address          String?
+  
+  reservations     ReservationPassenger[]
+
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+}
+
+// BRIDGE TABLE 2: Explicit Many-to-Many between Reservation and Passenger
+model ReservationPassenger {
+  reservation      Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  reservationId    String
+  
+  passenger        Passenger   @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+  passengerId      String
+  
+  assignedSeat     String?     // Optional: Future-proofing for seat selection
+
+  // Composite primary key prevents a passenger from being added to the same reservation twice
+  @@id([reservationId, passengerId])
+  @@index([reservationId])
+  @@index([passengerId])
+}
+
+model TravelPreference {
+  id               String    @id @default(uuid())
+  
+  member           User      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId         String
+  
+  isRecurring      Boolean   @default(false)
+  origin           String
+  destination      String
+  preferredDate    DateTime? // Nullable: Used for one-time requests
+  dayOfWeek        String?   // Nullable: Used for recurring (e.g., "Monday")
+  preferredTime    String?   // e.g., "Morning", "Evening"
+  status           String    @default("Interested")
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([memberId])
+  @@index([origin, destination])
+  @@index([isRecurring])
+}
+
+model Message {
+  id               String   @id @default(uuid())
+  content          String   @db.Text
+  
+  sender           User     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId         String
+  
+  receiver         User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId       String
+
+  isRead           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([senderId, receiverId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id               String   @id @default(uuid())
+  member           User     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId         String
+  
+  type             String   // Enums could also be used here depending on frontend logic
+  content          String   @db.Text
+  isRead           Boolean  @default(false)
+
+  createdAt        DateTime @default(now())
+
+  @@index([memberId])
+  @@index([isRead])
+}
