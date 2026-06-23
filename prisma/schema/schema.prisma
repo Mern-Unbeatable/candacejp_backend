@@ -50,13 +50,13 @@ model User {
   id               String          @id @default(uuid())
   email            String          @unique
   password         String
-  firstName        String
-  lastName         String
-  phone            String
-  address          String
-  city             String
-  state            String
-  zipCode          String
+  firstName        String?
+  lastName         String?
+  phone            String?
+  address          String?
+  city             String?
+  state            String?
+  zipCode          String?
   
   role             Role            @default(MEMBER)
   status           AccountStatus   @default(PENDING_PAYMENT)

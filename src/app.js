@@ -2,6 +2,7 @@ import express from "express";
 import morgan from "morgan";
 import logger from "./utils/logger.js";
 import authRoutes from "./routes/auth.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 
 class App {
   constructor() {
@@ -41,6 +42,7 @@ class App {
       });
     });
     this.app.use('/api/auth', authRoutes);
+    this.app.use('/api/admin', adminRoutes);
 
     // Example of where your modular routes will be injected:
     // import userRoutes from './routes/user.routes.js';
