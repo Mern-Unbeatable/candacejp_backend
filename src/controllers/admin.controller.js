@@ -1,84 +1,100 @@
 import adminService from '../services/admin.service.js';
+import logger from '../utils/logger.js';
+import { sendError, sendSuccess } from '../utils/apiResponse.js';
 
 class AdminController {
     // --- Concierge ---
     addStaff = async (req, res) => {
         try {
             const staff = await adminService.addConciergeStaff(req.body);
-            res.status(201).json(staff);
+            return sendSuccess(res, 'Concierge staff created successfully.', staff, 201);
         } catch (error) {
             if (error.message === 'A user with this email already exists' || error.code === 'P2002') {
-                return res.status(409).json({ error: 'A user with this email already exists' });
+                return sendError(res, 'A user with this email already exists', 409);
             }
-            res.status(400).json({ error: error.message });
+            return sendError(res, error.message, 400);
         }
     };
 
     getStaff = async (req, res) => {
         const { page, limit } = req.query;
         const data = await adminService.getAllStaff(page, limit);
-        res.status(200).json(data);
+        return sendSuccess(res, 'Concierge staff retrieved successfully.', data);
     };
 
     updateStaffStatus = async (req, res) => {
-        const { id } = req.params;
-        const { status } = req.body;
-        const updated = await adminService.updateStaffStatus(id, status);
-        res.status(200).json(updated);
+        try {
+            const { id } = req.params;
+            const { status } = req.body;
+            const updated = await adminService.updateStaffStatus(id, status);
+            return sendSuccess(res, 'Concierge staff status updated successfully.', updated);
+        } catch (error) {
+            return sendError(res, error.message, 400);
+        }
     };
 
     deleteStaff = async (req, res) => {
         try {
-            const result = await adminService.deleteStaff(req.params.id);
-            res.status(200).json(result);
+            await adminService.deleteStaff(req.params.id);
+            return sendSuccess(res, 'Concierge staff deleted successfully.');
         } catch (error) {
             if (error.message === 'Staff not found' || error.code === 'P2025') {
-                return res.status(404).json({ success: false, message: 'Staff not found' });
+                return sendError(res, 'Staff not found', 404);
             }
-            res.status(400).json({ success: false, message: error.message });
+            return sendError(res, error.message, 400);
         }
     };
 
-
-    // Get individual concierge details
     getStaffDetails = async (req, res) => {
         try {
             const staff = await adminService.getStaffById(req.params.id);
-            res.status(200).json(staff);
+            if (!staff) {
+                return sendError(res, 'Staff not found', 404);
+            }
+            return sendSuccess(res, 'Concierge staff retrieved successfully.', staff);
         } catch (error) {
-            res.status(404).json({ error: "Staff not found" });
+            return sendError(res, 'Staff not found', 404);
         }
     };
 
-    // Full update of concierge info (PUT)
     updateStaff = async (req, res) => {
         try {
             const updated = await adminService.updateStaffDetails(req.params.id, req.body);
-            res.status(200).json(updated);
+            return sendSuccess(res, 'Concierge staff updated successfully.', updated);
         } catch (error) {
-            res.status(400).json({ error: error.message });
+            return sendError(res, error.message, 400);
         }
     };
+
     // --- Members ---
     getMembers = async (req, res) => {
         const { page, limit } = req.query;
         const data = await adminService.getAllMembers(page, limit);
-        res.status(200).json(data);
+        return sendSuccess(res, 'Members retrieved successfully.', data);
     };
 
     getMemberDetails = async (req, res) => {
-        const member = await adminService.getMemberById(req.params.id);
-        res.status(200).json(member);
+        try {
+            const member = await adminService.getMemberById(req.params.id);
+            if (!member) {
+                return sendError(res, 'Member not found', 404);
+            }
+            return sendSuccess(res, 'Member retrieved successfully.', member);
+        } catch (error) {
+            return sendError(res, 'Member not found', 404);
+        }
     };
+
     updateMember = async (req, res) => {
         try {
             const { id } = req.params;
             const updated = await adminService.updateMember(id, req.body);
-            res.status(200).json(updated);
+            return sendSuccess(res, 'Member updated successfully.', updated);
         } catch (error) {
             logger.error(`Error updating member ${req.params.id}: ${error.message}`);
-            res.status(400).json({ error: "Failed to update member information" });
+            return sendError(res, 'Failed to update member information', 400);
         }
     };
 }
+
 export default new AdminController();

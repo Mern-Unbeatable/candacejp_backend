@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma.js';
+import { buildPagination } from '../utils/pagination.js';
 
 const safeUser = { omit: { password: true } };
 
@@ -56,16 +57,27 @@ class AdminService {
     }
 
     async getAllStaff(page = 1, limit = 10) {
-        const skip = (page - 1) * parseInt(limit);
-        const staff = await prisma.user.findMany({
-            ...safeUser,
-            where: { role: 'CONCIERGE' },
-            skip,
-            take: parseInt(limit),
-            orderBy: { createdAt: 'desc' }
-        });
-        const total = await prisma.user.count({ where: { role: 'CONCIERGE' } });
-        return { staff, total };
+        const currentPage = Math.max(1, parseInt(page, 10) || 1);
+        const perPage = Math.max(1, parseInt(limit, 10) || 10);
+        const skip = (currentPage - 1) * perPage;
+
+        const where = { role: 'CONCIERGE' };
+
+        const [staff, total] = await Promise.all([
+            prisma.user.findMany({
+                ...safeUser,
+                where,
+                skip,
+                take: perPage,
+                orderBy: { createdAt: 'desc' },
+            }),
+            prisma.user.count({ where }),
+        ]);
+
+        return {
+            staff,
+            pagination: buildPagination(currentPage, perPage, total),
+        };
     }
 
     async updateStaffStatus(id, status) {
@@ -86,7 +98,6 @@ class AdminService {
         }
 
         await prisma.user.delete({ where: { id } });
-        return { success: true, message: 'Concierge staff deleted successfully' };
     }
 
     // Get individual concierge
@@ -110,17 +121,27 @@ class AdminService {
     }
     // Member Management
     async getAllMembers(page = 1, limit = 10) {
-        const skip = (page - 1) * parseInt(limit);
-        const members = await prisma.user.findMany({
-            ...safeUser,
-            where: { role: 'MEMBER' },
-            skip,
-            take: parseInt(limit)
-        });
-        const total = await prisma.user.count({ where: { role: 'MEMBER' } });
+        const currentPage = Math.max(1, parseInt(page, 10) || 1);
+        const perPage = Math.max(1, parseInt(limit, 10) || 10);
+        const skip = (currentPage - 1) * perPage;
 
-        
-        return { members, total };
+        const where = { role: 'MEMBER' };
+
+        const [members, total] = await Promise.all([
+            prisma.user.findMany({
+                ...safeUser,
+                where,
+                skip,
+                take: perPage,
+                orderBy: { createdAt: 'desc' },
+            }),
+            prisma.user.count({ where }),
+        ]);
+
+        return {
+            members,
+            pagination: buildPagination(currentPage, perPage, total),
+        };
     }
 
     async getMemberById(id) {
