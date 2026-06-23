@@ -1,6 +1,7 @@
 import express from "express";
 import morgan from "morgan";
 import logger from "./utils/logger.js";
+import authRoutes from "./routes/auth.routes.js";
 
 class App {
   constructor() {
@@ -39,6 +40,7 @@ class App {
         timestamp: new Date().toISOString(),
       });
     });
+    this.app.use('/api/auth', authRoutes);
 
     // Example of where your modular routes will be injected:
     // import userRoutes from './routes/user.routes.js';

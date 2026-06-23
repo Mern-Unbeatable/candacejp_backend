@@ -2,7 +2,29 @@ import authService from '../services/auth.service.js';
 import logger from '../utils/logger.js';
 
 class AuthController {
-  // ... register and verifyPayment remain exactly the same ...
+  register = async (req, res) => {
+    try {
+      const result = await authService.register(req.body);
+      logger.info(`User registered: ${result.user.email}`);
+      return res.status(201).json(result);
+    } catch (error) {
+      logger.error(`Registration failed - Error: ${error.message}`);
+      const status = error.message === 'User already exists' ? 409 : 500;
+      return res.status(status).json({ error: error.message });
+    }
+  };
+
+  verifyPayment = async (req, res) => {
+    const sessionId = req.body.session_id ?? req.body.sessionId;
+    try {
+      const result = await authService.verifyPayment(sessionId);
+      logger.info(`Payment verified for user: ${result.user.id}`);
+      return res.status(200).json(result);
+    } catch (error) {
+      logger.error(`Payment verification failed - Error: ${error.message}`);
+      return res.status(400).json({ error: error.message });
+    }
+  };
 
   login = async (req, res) => {
     const { email, password } = req.body;
