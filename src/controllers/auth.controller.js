@@ -9,7 +9,16 @@ class AuthController {
       return res.status(201).json(result);
     } catch (error) {
       logger.error(`Registration failed - Error: ${error.message}`);
-      const status = error.message === 'User already exists' ? 409 : 500;
+      
+      // Dynamically set the correct HTTP status code
+      let status = 500; // Default to server error
+      
+      if (error.message === 'User already exists') {
+        status = 409; // Conflict
+      } else if (error.message.startsWith('Missing required fields')) {
+        status = 400; // Bad Request (User error)
+      }
+      
       return res.status(status).json({ error: error.message });
     }
   };
@@ -28,16 +37,32 @@ class AuthController {
 
   login = async (req, res) => {
     const { email, password } = req.body;
+    
     try {
       const result = await authService.login(email, password);
       logger.info(`User logged in successfully: ${email}`);
       return res.status(200).json(result);
     } catch (error) {
       logger.error(`Login failed for ${email} - Error: ${error.message}`);
+      
+      // Dynamically set the correct HTTP status code based on the specific error
+      if (error.message === 'User not found') {
+        // 404 Not Found is the standard code when a resource (the user) doesn't exist
+        return res.status(404).json({ error: "No account found with this email address." });
+      } 
+      
+      if (error.message === 'Incorrect password') {
+        // 401 Unauthorized is the standard code for bad authentication
+        return res.status(401).json({ error: "The password you entered is incorrect." });
+      } 
+      
       if (error.message === "PaymentRequired") {
-        return res.status(402).json({ error: "Registration fee pending." });
+        // 402 Payment Required
+        return res.status(402).json({ error: "Registration fee pending. Please complete your payment." });
       }
-      return res.status(401).json({ error: error.message });
+      
+      // Fallback for any other unexpected database or server errors
+      return res.status(500).json({ error: "An unexpected error occurred during login." });
     }
   };
 

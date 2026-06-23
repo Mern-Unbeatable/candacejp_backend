@@ -30,6 +30,11 @@ class Logger {
     this.logger.info(message);
   }
 
+  // Added warn method to resolve the error in your middleware
+  warn(message) {
+    this.logger.warn(message);
+  }
+
   error(message) {
     this.logger.error(message);
   }

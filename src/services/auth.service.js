@@ -15,20 +15,23 @@ class AuthService {
   // Helper method to generate both access and refresh tokens
   generateTokens(user) {
     const payload = { id: user.id, role: user.role, status: user.status };
-    
-    const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, { 
-      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' 
+
+    const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
+      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m'
     });
-    
-    const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, { 
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' 
+
+    const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
     });
 
     return { accessToken, refreshToken };
   }
 
   async register(userData) {
-    const { email, password, firstName, lastName } = userData;
+    const {
+      email, password, firstName, lastName,
+      phone, address, city, state, zipCode
+    } = userData;
 
     // 1. Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -40,19 +43,25 @@ class AuthService {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 3. Create the user in Prisma (Uses the new 'password' field)
+    // 3. Create the user in Prisma
     const newUser = await prisma.user.create({
       data: {
         email,
-        password: hashedPassword, // Updated field name
+        password: hashedPassword,
         firstName,
         lastName,
+        phone,
+        address,
+        city,
+        state,
+        zipCode,
       },
     });
 
     // 4. Create a Stripe Checkout Session
     const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
+      customer_creation: 'always', // Forces Stripe to create a customer ID
       line_items: [
         {
           price_data: {
@@ -67,7 +76,7 @@ class AuthService {
         },
       ],
       mode: 'payment',
-      client_reference_id: newUser.id, 
+      client_reference_id: newUser.id,
       customer_email: newUser.email,
       success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/register`,
@@ -76,6 +85,7 @@ class AuthService {
     return {
       user: { id: newUser.id, email: newUser.email },
       checkoutUrl: session.url,
+      sessionId: session.id // Returns the session ID to the frontend
     };
   }
 
@@ -90,7 +100,7 @@ class AuthService {
         where: { id: userId },
         data: {
           status: 'ACTIVE',
-          stripeCustomerId: session.customer, 
+          stripeCustomerId: session.customer,
         },
       });
 
@@ -103,13 +113,13 @@ class AuthService {
   async login(email, password) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      throw new Error("Invalid credentials");
+      throw new Error("User not found");
     }
 
-    // Compare against the new 'password' field
-    const isMatch = await bcrypt.compare(password, user.password); // Updated field name
+    // Compare against the 'password' field
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      throw new Error("Invalid credentials");
+      throw new Error("Incorrect password");
     }
 
     if (user.status === 'PENDING_PAYMENT') {
@@ -117,10 +127,13 @@ class AuthService {
     }
 
     const tokens = this.generateTokens(user);
-
+    
+    // SECURELY remove the password AND stripeCustomerId from the user object
+    const { password: _, stripeCustomerId, ...safeUser } = user;
+    
     return {
       ...tokens,
-      user: { id: user.id, email: user.email, firstName: user.firstName, role: user.role }
+      user: safeUser
     };
   }
 
