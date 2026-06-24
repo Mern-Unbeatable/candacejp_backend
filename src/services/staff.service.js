@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { buildPagination } from '../utils/pagination.js';
+import { getActivePassengerCount } from '../utils/reservation.js';
 
 const OPPORTUNITY_STATUSES = ['DRAFT', 'OPEN_FOR_RESERVATION', 'CONFIRMED', 'COMPLETED'];
 
@@ -22,8 +23,8 @@ function buildOpportunityWhere({ direction, status }) {
 }
 
 function formatOpportunityRow(opportunity) {
-    const totalBooked = opportunity.reservations.length;
-    const { reservations, ...rest } = opportunity;
+    const totalBooked = opportunity.bookedSeats ?? 0;
+    const { bookedSeats, reservations, ...rest } = opportunity;
 
     return {
         ...rest,
@@ -72,18 +73,19 @@ class StaffService {
                 skip,
                 take: perPage,
                 orderBy: { departureDate: 'asc' },
-                include: {
-                    reservations: {
-                        where: { status: { in: ['PENDING', 'CONFIRMED'] } },
-                        select: { id: true },
-                    },
-                },
             }),
             prisma.opportunity.count({ where }),
         ]);
 
+        const opportunitiesWithSeats = await Promise.all(
+            opportunities.map(async (opportunity) => ({
+                ...opportunity,
+                bookedSeats: await getActivePassengerCount(prisma, opportunity.id),
+            }))
+        );
+
         return {
-            opportunities: opportunities.map(formatOpportunityRow),
+            opportunities: opportunitiesWithSeats.map(formatOpportunityRow),
             pagination: buildPagination(currentPage, perPage, total),
         };
     }

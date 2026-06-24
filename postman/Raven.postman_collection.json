@@ -16,7 +16,7 @@
 	},
 	"item": [
 		{
-			"name": "auth",
+			"name": "Auth",
 			"description": "Authentication and Registration endpoints.",
 			"item": [
 				{
@@ -328,7 +328,7 @@
 			]
 		},
 		{
-			"name": "Concierge Staff",
+			"name": "Staff",
 			"item": [
 				{
 					"name": "opportunities",
@@ -351,6 +351,8 @@
 								"method": "GET",
 								"url": {
 									"raw": "{{baseUrl}}/api/staff/opportunities?page=1&limit=10&status=all&direction=NYC_TAMPA",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "opportunities"],
 									"query": [
 										{
 											"key": "page",
@@ -470,6 +472,116 @@
 					]
 				}
 			]
+		},
+		{
+			"name": "Member",
+			"item": [
+				{
+					"name": "Travel Opportunities",
+					"item": [
+						{
+							"name": "Get Available Opportunities",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/opportunities?page=1&limit=10",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "opportunities"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "10" },
+										{ "key": "direction", "value": "NYC_TAMPA", "disabled": true }
+									]
+								}
+							}
+						},
+						{
+							"name": "Place Reservation",
+							"request": {
+								"method": "POST",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"url": {
+									"raw": "{{baseUrl}}/api/member/opportunities/{{opportunityId}}/reservations",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "opportunities", "{{opportunityId}}", "reservations"],
+									"variable": [
+										{ "key": "opportunityId", "value": "" }
+									]
+								},
+								"description": "Books 1 seat for the logged-in member. Passenger info is taken from the member profile (JWT token). No request body required."
+							}
+						}
+					]
+				},
+				{
+					"name": "Pending Reservations",
+					"item": [
+						{
+							"name": "Get Pending Reservations",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/reservations/pending?page=1&limit=10",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "reservations", "pending"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "10" }
+									]
+								}
+							}
+						},
+						{
+							"name": "Cancel Reservation",
+							"request": {
+								"method": "PATCH",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/reservations/:id/cancel",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "reservations", ":id", "cancel"],
+									"variable": [
+										{ "key": "id", "value": "" }
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Upcoming Trips",
+					"item": [
+						{
+							"name": "Get Upcoming Trips",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/reservations/upcoming?page=1&limit=10",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "reservations", "upcoming"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "10" }
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Trip Details",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/reservations/:id",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "reservations", ":id"],
+									"variable": [
+										{ "key": "id", "value": "" }
+									]
+								}
+							}
+						}
+					]
+				}
+			]
 		}
 	],
 	"variable": [
@@ -485,6 +597,11 @@
 		},
 		{
 			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "opportunityId",
 			"value": "",
 			"type": "string"
 		}
