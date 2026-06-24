@@ -460,6 +460,59 @@
 					]
 				},
 				{
+					"name": "Travel Preferences",
+					"item": [
+						{
+							"name": "Get Travel Preferences (Paginated)",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/travel-preferences?page=1&limit=7&type=RECURRING&direction=all&status=all",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "travel-preferences"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "7" },
+										{ "key": "type", "value": "RECURRING", "description": "RECURRING | ONE_TIME" },
+										{ "key": "direction", "value": "all", "description": "all | NYC_TAMPA | TAMPA_NYC" },
+										{ "key": "status", "value": "all", "description": "all | Interested | Confirmed | Canceled" }
+									]
+								},
+								"description": "Paginated list for Recurring Travel or One-Time Travel Requests tabs."
+							}
+						},
+						{
+							"name": "Get Travel Preference Details",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/travel-preferences/{{preferenceId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "travel-preferences", "{{preferenceId}}"]
+								},
+								"description": "Full details for the View Details modal including member info and departure text."
+							}
+						},
+						{
+							"name": "Update Travel Preference Status",
+							"request": {
+								"method": "PATCH",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"Confirmed\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/travel-preferences/{{preferenceId}}/status",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "travel-preferences", "{{preferenceId}}", "status"]
+								},
+								"description": "Update status to Interested, Confirmed, or Canceled."
+							}
+						}
+					]
+				},
+				{
 					"name": "opportunities",
 					"item": [
 						{
@@ -549,7 +602,20 @@
 									"mode": "raw",
 									"raw": "{\n  \"status\": \"CONFIRMED\"\n}"
 								},
-								"url": "{{baseUrl}}/api/staff/opportunities/:id/status"
+								"url": "{{baseUrl}}/api/staff/opportunities/:id/status",
+								"description": "Confirming the opportunity also confirms all pending reservations and notifies each member."
+							}
+						},
+						{
+							"name": "Confirm Reservation",
+							"request": {
+								"method": "PATCH",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/reservations/{{reservationId}}/confirm",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "reservations", "{{reservationId}}", "confirm"]
+								},
+								"description": "Confirm a single pending member reservation. Sends notification and adds to member upcoming trips."
 							}
 						}
 					]
@@ -691,21 +757,44 @@
 										{ "key": "page", "value": "1" },
 										{ "key": "limit", "value": "10" }
 									]
-								}
+								},
+								"description": "Returns trips[] with a source field. Use the matching details request below based on source."
 							}
 						},
 						{
-							"name": "Get Trip Details",
+							"name": "Get Trip Details (RESERVATION)",
 							"request": {
 								"method": "GET",
 								"url": {
-									"raw": "{{baseUrl}}/api/member/reservations/:id",
+									"raw": "{{baseUrl}}/api/member/reservations/{{reservationId}}",
 									"host": ["{{baseUrl}}"],
-									"path": ["api", "member", "reservations", ":id"],
-									"variable": [
-										{ "key": "id", "value": "" }
-									]
-								}
+									"path": ["api", "member", "reservations", "{{reservationId}}"]
+								},
+								"description": "When upcoming trip source is RESERVATION. GET /api/member/reservations/:id"
+							}
+						},
+						{
+							"name": "Get Trip Details (TRAVEL_PREFERENCE)",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/travel-preferences/{{preferenceId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "travel-preferences", "{{preferenceId}}"]
+								},
+								"description": "When upcoming trip source is TRAVEL_PREFERENCE. GET /api/member/travel-preferences/:id"
+							}
+						},
+						{
+							"name": "Get Trip Details (CUSTOM_TRAVEL)",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/custom-travels/{{interestId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "custom-travels", "{{interestId}}"]
+								},
+								"description": "When upcoming trip source is CUSTOM_TRAVEL. GET /api/member/custom-travels/:id"
 							}
 						}
 					]
@@ -722,6 +811,18 @@
 									"host": ["{{baseUrl}}"],
 									"path": ["api", "member", "travel-preferences"]
 								}
+							}
+						},
+						{
+							"name": "Get Travel Preference Details",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/travel-preferences/{{preferenceId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "travel-preferences", "{{preferenceId}}"]
+								},
+								"description": "Trip details for confirmed travel preferences from upcoming trips. Use when trip.source is TRAVEL_PREFERENCE."
 							}
 						},
 						{
@@ -806,6 +907,61 @@
 									"path": ["api", "member", "custom-travels"]
 								}
 							}
+						},
+						{
+							"name": "Get Custom Travel Details",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/custom-travels/{{interestId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "custom-travels", "{{interestId}}"]
+								},
+								"description": "Trip details for confirmed member interests. Use when upcoming trip source is CUSTOM_TRAVEL."
+							}
+						}
+					]
+				},
+				{
+					"name": "Notifications",
+					"item": [
+						{
+							"name": "Get Notifications (Paginated)",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/notifications?page=1&limit=10",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "notifications"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "10" }
+									]
+								},
+								"description": "Member notifications including cancelled travel preferences."
+							}
+						},
+						{
+							"name": "Mark Notification as Read",
+							"request": {
+								"method": "PATCH",
+								"url": {
+									"raw": "{{baseUrl}}/api/notifications/{{notificationId}}/read",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "notifications", "{{notificationId}}", "read"]
+								}
+							}
+						},
+						{
+							"name": "Mark All Notifications as Read",
+							"request": {
+								"method": "PATCH",
+								"url": {
+									"raw": "{{baseUrl}}/api/notifications/read-all",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "notifications", "read-all"]
+								}
+							}
 						}
 					]
 				},
@@ -881,6 +1037,21 @@
 		},
 		{
 			"key": "opportunityId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "reservationId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "preferenceId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "interestId",
 			"value": "",
 			"type": "string"
 		}

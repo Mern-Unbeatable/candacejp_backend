@@ -7,10 +7,13 @@ import {
 } from '../utils/reservation.js';
 import {
   formatTravelPreference,
+  formatTravelPreferenceForUpcoming,
+  formatDepartureText,
   groupTravelPreferences,
   resolveRoute,
 } from '../utils/travelPreference.js';
 import { normalizePassenger, resolveCustomTravelRoute } from '../utils/customTravel.js';
+import { formatCustomTravelForUpcoming } from '../utils/memberInterest.js';
 import { parseDateOnly } from '../utils/dateOnly.js';
 
 const reservationInclude = {
@@ -150,7 +153,67 @@ class MemberService {
   }
 
   async getUpcomingTrips(memberId, page = 1, limit = 10) {
-    return this.getMemberReservationsByStatus(memberId, 'CONFIRMED', page, limit);
+    const currentPage = Math.max(1, parseInt(page, 10) || 1);
+    const perPage = Math.max(1, parseInt(limit, 10) || 10);
+
+    const member = await prisma.user.findUnique({
+      where: { id: memberId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        address: true,
+        city: true,
+        state: true,
+        zipCode: true,
+      },
+    });
+
+    const [reservations, preferences, customTravels] = await Promise.all([
+      prisma.reservation.findMany({
+        where: { memberId, status: 'CONFIRMED' },
+        orderBy: { createdAt: 'desc' },
+        include: reservationInclude,
+      }),
+      prisma.travelPreference.findMany({
+        where: { memberId, status: 'Confirmed' },
+        orderBy: { updatedAt: 'desc' },
+      }),
+      prisma.customTravelRequest.findMany({
+        where: { memberId, status: 'CONFIRMED' },
+        orderBy: { updatedAt: 'desc' },
+        include: { passengers: true },
+      }),
+    ]);
+
+    const trips = [
+      ...reservations.map((reservation) => ({
+        ...formatReservationForMember(reservation),
+        source: 'RESERVATION',
+        sortDate: reservation.createdAt,
+      })),
+      ...preferences.map((preference) => ({
+        ...formatTravelPreferenceForUpcoming(preference, member),
+        sortDate: preference.updatedAt,
+      })),
+      ...customTravels.map((request) => ({
+        ...formatCustomTravelForUpcoming(request),
+        sortDate: request.updatedAt,
+      })),
+    ].sort((a, b) => new Date(b.sortDate) - new Date(a.sortDate));
+
+    const total = trips.length;
+    const skip = (currentPage - 1) * perPage;
+    const paginatedTrips = trips
+      .slice(skip, skip + perPage)
+      .map(({ sortDate, ...trip }) => trip);
+
+    return {
+      trips: paginatedTrips,
+      pagination: buildPagination(currentPage, perPage, total),
+    };
   }
 
   async getMemberReservationsByStatus(memberId, status, page = 1, limit = 10) {
@@ -191,7 +254,53 @@ class MemberService {
       throw new Error('Reservation not found');
     }
 
-    return formatReservationForMember(reservation);
+    return {
+      ...formatReservationForMember(reservation),
+      source: 'RESERVATION',
+    };
+  }
+
+  async getTravelPreferenceDetails(memberId, preferenceId) {
+    const preference = await prisma.travelPreference.findFirst({
+      where: { id: preferenceId, memberId },
+    });
+
+    if (!preference) {
+      throw new Error('Travel preference not found');
+    }
+
+    const member = await prisma.user.findUnique({
+      where: { id: memberId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        address: true,
+        city: true,
+        state: true,
+        zipCode: true,
+      },
+    });
+
+    return {
+      ...formatTravelPreferenceForUpcoming(preference, member),
+      departureText: formatDepartureText(preference),
+    };
+  }
+
+  async getCustomTravelDetails(memberId, requestId) {
+    const request = await prisma.customTravelRequest.findFirst({
+      where: { id: requestId, memberId, status: 'CONFIRMED' },
+      include: { passengers: true },
+    });
+
+    if (!request) {
+      throw new Error('Custom travel request not found');
+    }
+
+    return formatCustomTravelForUpcoming(request);
   }
 
   async cancelReservation(memberId, reservationId) {

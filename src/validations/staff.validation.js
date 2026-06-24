@@ -81,6 +81,16 @@ class StaffValidation {
       'any.required': 'Status is required.',
     }),
   });
+
+  updateTravelPreferenceStatus = Joi.object({
+    status: Joi.string()
+      .valid('Interested', 'Confirmed', 'Canceled', 'INTERESTED', 'CONFIRMED', 'CANCELED', 'CANCELLED')
+      .required()
+      .messages({
+        'any.only': 'Status must be Interested, Confirmed, or Canceled.',
+        'any.required': 'Status is required.',
+      }),
+  });
 }
 
 export default new StaffValidation();

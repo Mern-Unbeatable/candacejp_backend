@@ -1,4 +1,5 @@
-import { DAY_OF_WEEK_OPTIONS } from './dateOnly.js';
+import { DAY_OF_WEEK_OPTIONS, toDateKey } from './dateOnly.js';
+import { formatDirectionLabel, formatMemberName } from './memberInterest.js';
 
 const LOCATION_LABELS = {
   NYC: 'New York',
@@ -21,6 +22,142 @@ export function resolveRoute(from, to) {
   const direction = from === 'NYC' ? 'NYC_TAMPA' : 'TAMPA_NYC';
 
   return { origin, destination, direction };
+}
+
+export const TRAVEL_PREFERENCE_STATUSES = ['Interested', 'Confirmed', 'Canceled'];
+
+export function normalizeTravelPreferenceStatus(status) {
+  const map = {
+    interested: 'Interested',
+    confirmed: 'Confirmed',
+    canceled: 'Canceled',
+    cancelled: 'Canceled',
+  };
+
+  const normalized = map[status?.toLowerCase()];
+  if (!normalized) {
+    throw new Error('Invalid status. Use Interested, Confirmed, or Canceled.');
+  }
+
+  return normalized;
+}
+
+export function normalizeTravelPreferenceType(type) {
+  if (!type) return null;
+
+  const normalized = type.toLowerCase().replace(/[\s_-]+/g, '');
+  if (normalized === 'recurring' || normalized === 'recurringtravel') return true;
+  if (normalized === 'onetime' || normalized === 'onetimetravelrequests') return false;
+
+  throw new Error('Invalid type filter. Use RECURRING or ONE_TIME.');
+}
+
+function formatListDate(date) {
+  if (!date) return null;
+
+  const [year, month, day] = toDateKey(date).split('-');
+  return `${day}-${month}-${year}`;
+}
+
+export function formatRecurringDayLabel(dayOfWeek) {
+  if (!dayOfWeek) return null;
+  return dayOfWeek.endsWith('s') ? dayOfWeek.slice(0, -1) : dayOfWeek;
+}
+
+export function formatDepartureText(preference) {
+  const time = preference.preferredTime || '';
+
+  if (preference.isRecurring) {
+    return `Every ${formatRecurringDayLabel(preference.dayOfWeek)}${time ? `, ${time}` : ''}`;
+  }
+
+  const dateStr = formatPreferredDate(preference.preferredDate);
+  return `${dateStr}${time ? `, ${time}` : ''}`;
+}
+
+function formatUpcomingRoute(direction) {
+  return formatDirectionLabel(direction)
+    .replace('Tampa', 'TAMPA')
+    .replace(' → ', ' >> ');
+}
+
+export function formatTravelPreferenceForUpcoming(preference, member) {
+  const address = member
+    ? [member.address, member.city, member.state, member.zipCode].filter(Boolean).join(', ')
+    : null;
+
+  return {
+    id: preference.id,
+    source: 'TRAVEL_PREFERENCE',
+    route: formatUpcomingRoute(preference.direction),
+    type: preference.isRecurring ? 'Recurring Travel' : 'One-Time Travel',
+    departureDate: preference.isRecurring
+      ? formatRecurringDayLabel(preference.dayOfWeek)
+      : formatPreferredDate(preference.preferredDate),
+    departureTime: preference.preferredTime,
+    status: preference.status,
+    passengers: member
+      ? [{
+          name: formatMemberName(member),
+          email: member.email,
+          phone: member.phone,
+          address,
+        }]
+      : [],
+    passengerCount: 1,
+    direction: preference.direction,
+    isRecurring: preference.isRecurring,
+    createdAt: preference.createdAt,
+    updatedAt: preference.updatedAt,
+  };
+}
+
+export function formatStaffTravelPreferenceListItem(preference) {
+  const route = formatDirectionLabel(preference.direction);
+
+  return {
+    id: preference.id,
+    type: preference.isRecurring ? 'RECURRING' : 'ONE_TIME',
+    route,
+    date: preference.isRecurring
+      ? formatRecurringDayLabel(preference.dayOfWeek)
+      : formatListDate(preference.preferredDate),
+    time: preference.preferredTime,
+    status: preference.status,
+    direction: preference.direction,
+    dayOfWeek: preference.dayOfWeek,
+    preferredDate: preference.preferredDate,
+    memberId: preference.memberId,
+    createdAt: preference.createdAt,
+  };
+}
+
+export function formatStaffTravelPreferenceDetails(preference) {
+  const member = preference.member;
+  const route = formatDirectionLabel(preference.direction);
+
+  return {
+    id: preference.id,
+    type: preference.isRecurring ? 'RECURRING' : 'ONE_TIME',
+    route,
+    direction: preference.direction,
+    status: preference.status,
+    preferredTime: preference.preferredTime,
+    dayOfWeek: preference.dayOfWeek,
+    preferredDate: preference.preferredDate,
+    departureText: formatDepartureText(preference),
+    member: {
+      id: member.id,
+      name: formatMemberName(member),
+      email: member.email,
+      phone: member.phone,
+      address: [member.address, member.city, member.state, member.zipCode]
+        .filter(Boolean)
+        .join(', ') || null,
+    },
+    createdAt: preference.createdAt,
+    updatedAt: preference.updatedAt,
+  };
 }
 
 export function formatPreferredDate(date) {

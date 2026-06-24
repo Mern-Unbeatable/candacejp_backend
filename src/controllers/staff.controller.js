@@ -117,5 +117,51 @@ class StaffController {
             return sendError(res, e.message, status);
         }
     };
+
+    getTravelPreferences = async (req, res) => {
+        try {
+            const {
+                page = 1,
+                limit = 10,
+                type,
+                direction = 'all',
+                status = 'all',
+            } = req.query;
+            const data = await staffService.getTravelPreferences(page, limit, { type, direction, status });
+            return sendSuccess(res, 'Travel preferences retrieved successfully.', data);
+        } catch (e) {
+            return sendError(res, e.message, 400);
+        }
+    };
+
+    getTravelPreferenceDetails = async (req, res) => {
+        try {
+            const data = await staffService.getTravelPreferenceDetails(req.params.id);
+            return sendSuccess(res, 'Travel preference details retrieved successfully.', data);
+        } catch (e) {
+            const status = e.message === 'Travel preference not found' ? 404 : 400;
+            return sendError(res, e.message, status);
+        }
+    };
+
+    updateTravelPreferenceStatus = async (req, res) => {
+        try {
+            const data = await staffService.updateTravelPreferenceStatus(req.params.id, req.body.status);
+            return sendSuccess(res, `Travel preference status updated to ${data.status}.`, data);
+        } catch (e) {
+            const status = e.message === 'Travel preference not found' ? 404 : 400;
+            return sendError(res, e.message, status);
+        }
+    };
+
+    confirmReservation = async (req, res) => {
+        try {
+            const data = await staffService.confirmReservation(req.params.id);
+            return sendSuccess(res, 'Reservation confirmed successfully.', data);
+        } catch (e) {
+            const status = e.message === 'Reservation not found' ? 404 : 400;
+            return sendError(res, e.message, status);
+        }
+    };
 }
 export default new StaffController();

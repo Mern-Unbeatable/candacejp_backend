@@ -11,16 +11,27 @@ const staffOnly = requireRole(['CONCIERGE']);
 
 router.use(verifyToken);
 
-router.get('/dashboard/summary', adminOrStaff, staffController.getDashboardSummary);
-router.get('/dashboard/calendar', adminOrStaff, staffController.getDashboardCalendar);
+router.get('/dashboard/summary', staffOnly, staffController.getDashboardSummary);
+router.get('/dashboard/calendar', staffOnly, staffController.getDashboardCalendar);
 
-router.get('/member-interests', adminOrStaff, staffController.getMemberInterests);
-router.delete('/member-interests/:id', adminOrStaff, staffController.deleteMemberInterest);
-router.patch('/member-interests/:id/confirm', adminOrStaff, staffController.confirmMemberInterest);
+router.get('/member-interests', staffOnly, staffController.getMemberInterests);
+router.delete('/member-interests/:id', staffOnly, staffController.deleteMemberInterest);
+router.patch('/member-interests/:id/confirm', staffOnly, staffController.confirmMemberInterest);
+
+router.get('/travel-preferences', staffOnly, staffController.getTravelPreferences);
+router.get('/travel-preferences/:id', staffOnly, staffController.getTravelPreferenceDetails);
+router.patch(
+    '/travel-preferences/:id/status',
+    staffOnly,
+    validate(staffValidation.updateTravelPreferenceStatus),
+    staffController.updateTravelPreferenceStatus,
+);
+
+router.patch('/reservations/:id/confirm', staffOnly, staffController.confirmReservation);
 
 router.post('/opportunities', staffOnly, validate(staffValidation.createOpportunity), staffController.create);
-router.get('/opportunities', adminOrStaff, staffController.getAll);
-router.get('/opportunities/:id', adminOrStaff, staffController.getDetails);
+router.get('/opportunities', staffOnly, staffController.getAll);
+router.get('/opportunities/:id', staffOnly, staffController.getDetails);
 router.put('/opportunities/:id', staffOnly, validate(staffValidation.editOpportunity), staffController.edit);
 router.patch('/opportunities/:id/publish', staffOnly, staffController.publish);
 router.patch('/opportunities/:id/status', staffOnly, validate(staffValidation.updateOpportunityStatus), staffController.updateStatus);

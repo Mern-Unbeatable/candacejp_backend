@@ -121,6 +121,66 @@ export function formatCustomTravelInterest(request) {
   };
 }
 
+function formatUpcomingRouteLabel(direction) {
+  return formatDirectionLabel(direction)
+    .replace('Tampa', 'TAMPA')
+    .replace(' → ', ' >> ');
+}
+
+export function formatCustomTravelForUpcoming(request) {
+  const outboundRoute = formatUpcomingRouteLabel(request.direction);
+  const returnRoute = request.returnDirection
+    ? formatUpcomingRouteLabel(request.returnDirection)
+    : null;
+  const departureDate = formatCalendarDate(request.departureDate);
+  const returnDate = formatCalendarDate(request.returnDate);
+
+  const passengers = (request.passengers || []).map((passenger) => ({
+    name: `${passenger.firstName} ${passenger.lastName}`.trim(),
+    email: passenger.email,
+    phone: passenger.phone,
+    address: [passenger.address, passenger.zipCode].filter(Boolean).join(', ') || null,
+  }));
+
+  const base = {
+    id: request.id,
+    source: 'CUSTOM_TRAVEL',
+    status: 'Confirmed',
+    interestStatus: request.status,
+    tripType: request.tripType,
+    passengerCount: request.passengerCount,
+    passengers,
+    direction: request.direction,
+    returnDirection: request.returnDirection ?? null,
+    scheduleText: returnDate
+      ? `Departure: ${departureDate}, Return Departure: ${returnDate}`
+      : `Departure: ${departureDate}`,
+    specialRequests: request.specialRequests,
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+  };
+
+  if (request.tripType === 'ROUND_TRIP' && returnRoute) {
+    return {
+      ...base,
+      route: `${outboundRoute} , ${returnRoute}`,
+      type: 'Round Trip',
+      departureDate,
+      routes: [
+        { route: outboundRoute, departureDate: formatDisplayDate(request.departureDate) },
+        { route: returnRoute, departureDate: formatDisplayDate(request.returnDate) },
+      ],
+    };
+  }
+
+  return {
+    ...base,
+    route: outboundRoute,
+    type: 'One Way Trip',
+    departureDate,
+  };
+}
+
 export function formatMemberInterestListItem(request) {
   const member = request.member;
   const route = formatDirectionLabel(request.direction);

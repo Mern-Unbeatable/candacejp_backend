@@ -70,6 +70,16 @@ class MemberController {
     }
   };
 
+  getTravelPreferenceDetails = async (req, res) => {
+    try {
+      const data = await memberService.getTravelPreferenceDetails(req.user.id, req.params.id);
+      return sendSuccess(res, 'Travel preference details retrieved successfully.', data);
+    } catch (error) {
+      const status = error.message === 'Travel preference not found' ? 404 : 400;
+      return sendError(res, error.message, status);
+    }
+  };
+
   createTravelPreference = async (req, res) => {
     try {
       const data = await memberService.createTravelPreference(req.user.id, req.body);
@@ -95,6 +105,16 @@ class MemberController {
       return sendSuccess(res, 'Custom travel request submitted successfully.', null, 201);
     } catch (error) {
       return sendError(res, error.message, 400);
+    }
+  };
+
+  getCustomTravelDetails = async (req, res) => {
+    try {
+      const data = await memberService.getCustomTravelDetails(req.user.id, req.params.id);
+      return sendSuccess(res, 'Custom travel details retrieved successfully.', data);
+    } catch (error) {
+      const status = error.message === 'Custom travel request not found' ? 404 : 400;
+      return sendError(res, error.message, status);
     }
   };
 }

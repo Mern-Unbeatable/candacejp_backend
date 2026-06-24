@@ -1,6 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { buildPagination } from '../utils/pagination.js';
-import { getActivePassengerCount } from '../utils/reservation.js';
+import { getActivePassengerCount, formatReservationForMember } from '../utils/reservation.js';
 import {
     buildRouteSummary,
     formatCustomTravelInterest,
@@ -18,9 +18,26 @@ import {
     toDateKey,
 } from '../utils/memberInterest.js';
 import { formatDateLabel, getUtcWeekdayIndex, WEEK_DAYS_MONDAY_FIRST } from '../utils/dateOnly.js';
+import notificationService from './notification.service.js';
+import {
+    formatStaffTravelPreferenceDetails,
+    formatStaffTravelPreferenceListItem,
+    normalizeTravelPreferenceStatus,
+    normalizeTravelPreferenceType,
+    TRAVEL_PREFERENCE_STATUSES,
+} from '../utils/travelPreference.js';
 
 const OPPORTUNITY_STATUSES = ['DRAFT', 'OPEN_FOR_RESERVATION', 'CONFIRMED', 'COMPLETED'];
 const MEMBER_INTEREST_STATUSES = ['INTERESTED', 'CONFIRMED'];
+
+const reservationInclude = {
+    opportunity: true,
+    passengers: {
+        include: {
+            passenger: true,
+        },
+    },
+};
 
 function normalizeInterestDirection(direction) {
     if (!direction || direction.toLowerCase() === 'all') return null;
@@ -45,6 +62,26 @@ function buildMemberInterestWhere({ direction, status }) {
             throw new Error('Invalid status filter. Use all, INTERESTED, or CONFIRMED.');
         }
         where.status = normalizedStatus;
+    }
+
+    return where;
+}
+
+function buildTravelPreferenceWhere({ type, direction, status }) {
+    const where = {};
+    const isRecurring = normalizeTravelPreferenceType(type);
+
+    if (isRecurring !== null) {
+        where.isRecurring = isRecurring;
+    }
+
+    const normalizedDirection = normalizeInterestDirection(direction);
+    if (normalizedDirection) {
+        where.direction = normalizedDirection;
+    }
+
+    if (status && status.toLowerCase() !== 'all') {
+        where.status = normalizeTravelPreferenceStatus(status);
     }
 
     return where;
@@ -201,7 +238,47 @@ class StaffService {
             );
         }
 
-        return await prisma.opportunity.update({ where: { id }, data: { status: newStatus } });
+        const updatedOpportunity = await prisma.opportunity.update({
+            where: { id },
+            data: { status: newStatus },
+        });
+
+        if (newStatus === 'CONFIRMED') {
+            const pendingReservations = await prisma.reservation.findMany({
+                where: { opportunityId: id, status: 'PENDING' },
+                select: { id: true },
+            });
+
+            await Promise.all(
+                pendingReservations.map((reservation) => this.confirmReservation(reservation.id))
+            );
+        }
+
+        return updatedOpportunity;
+    }
+
+    async confirmReservation(id) {
+        const reservation = await prisma.reservation.findUnique({
+            where: { id },
+            include: reservationInclude,
+        });
+
+        if (!reservation) {
+            throw new Error('Reservation not found');
+        }
+        if (reservation.status !== 'PENDING') {
+            throw new Error('Only pending reservations can be confirmed');
+        }
+
+        const updated = await prisma.reservation.update({
+            where: { id },
+            data: { status: 'CONFIRMED' },
+            include: reservationInclude,
+        });
+
+        await notificationService.notifyReservationConfirmed(updated);
+
+        return formatReservationForMember(updated);
     }
 
     buildInterestDirectionFilter(direction) {
@@ -505,10 +582,105 @@ class StaffService {
                         email: true,
                     },
                 },
+                passengers: true,
             },
         });
 
+        await notificationService.notifyMemberInterestConfirmed(updated);
+
         return formatMemberInterestListItem(updated);
+    }
+
+    async getTravelPreferences(page = 1, limit = 10, filters = {}) {
+        const currentPage = Math.max(1, parseInt(page, 10) || 1);
+        const perPage = Math.max(1, parseInt(limit, 10) || 10);
+        const skip = (currentPage - 1) * perPage;
+        const where = buildTravelPreferenceWhere(filters);
+
+        const [preferences, total] = await Promise.all([
+            prisma.travelPreference.findMany({
+                where,
+                skip,
+                take: perPage,
+                orderBy: { createdAt: 'desc' },
+            }),
+            prisma.travelPreference.count({ where }),
+        ]);
+
+        return {
+            preferences: preferences.map(formatStaffTravelPreferenceListItem),
+            pagination: buildPagination(currentPage, perPage, total),
+        };
+    }
+
+    async getTravelPreferenceDetails(id) {
+        const preference = await prisma.travelPreference.findUnique({
+            where: { id },
+            include: {
+                member: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true,
+                        address: true,
+                        city: true,
+                        state: true,
+                        zipCode: true,
+                    },
+                },
+            },
+        });
+
+        if (!preference) {
+            throw new Error('Travel preference not found');
+        }
+
+        return formatStaffTravelPreferenceDetails(preference);
+    }
+
+    async updateTravelPreferenceStatus(id, status) {
+        const preference = await prisma.travelPreference.findUnique({ where: { id } });
+
+        if (!preference) {
+            throw new Error('Travel preference not found');
+        }
+
+        const normalizedStatus = normalizeTravelPreferenceStatus(status);
+        if (!TRAVEL_PREFERENCE_STATUSES.includes(normalizedStatus)) {
+            throw new Error('Invalid status. Use Interested, Confirmed, or Canceled.');
+        }
+
+        const updated = await prisma.travelPreference.update({
+            where: { id },
+            data: { status: normalizedStatus },
+            include: {
+                member: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true,
+                        address: true,
+                        city: true,
+                        state: true,
+                        zipCode: true,
+                    },
+                },
+            },
+        });
+
+        if (normalizedStatus !== preference.status) {
+            if (normalizedStatus === 'Canceled') {
+                await notificationService.notifyTravelPreferenceCancelled(updated);
+            } else if (normalizedStatus === 'Confirmed') {
+                await notificationService.notifyTravelPreferenceConfirmed(updated);
+            }
+        }
+
+        return formatStaffTravelPreferenceDetails(updated);
     }
 }
 export default new StaffService();

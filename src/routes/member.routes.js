@@ -17,9 +17,11 @@ router.get('/reservations/:id', memberController.getReservationDetails);
 router.patch('/reservations/:id/cancel', memberController.cancelReservation);
 
 router.get('/travel-preferences', memberController.getTravelPreferences);
+router.get('/travel-preferences/:id', memberController.getTravelPreferenceDetails);
 router.post('/travel-preferences', validate(memberValidation.createTravelPreference), memberController.createTravelPreference);
 router.delete('/travel-preferences/:id', memberController.deleteTravelPreference);
 
 router.post('/custom-travels', validate(memberValidation.createCustomTravel), memberController.createCustomTravel);
+router.get('/custom-travels/:id', memberController.getCustomTravelDetails);
 
 export default router;
