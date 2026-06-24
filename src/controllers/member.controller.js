@@ -60,6 +60,34 @@ class MemberController {
       return sendError(res, error.message, status);
     }
   };
+
+  getTravelPreferences = async (req, res) => {
+    try {
+      const data = await memberService.getTravelPreferences(req.user.id);
+      return sendSuccess(res, 'Travel preferences retrieved successfully.', data);
+    } catch (error) {
+      return sendError(res, error.message, 400);
+    }
+  };
+
+  createTravelPreference = async (req, res) => {
+    try {
+      const data = await memberService.createTravelPreference(req.user.id, req.body);
+      return sendSuccess(res, 'Travel preference added successfully.', data, 201);
+    } catch (error) {
+      return sendError(res, error.message, 400);
+    }
+  };
+
+  deleteTravelPreference = async (req, res) => {
+    try {
+      await memberService.deleteTravelPreference(req.user.id, req.params.id);
+      return sendSuccess(res, 'Travel preference deleted successfully.');
+    } catch (error) {
+      const status = error.message === 'Travel preference not found' ? 404 : 400;
+      return sendError(res, error.message, status);
+    }
+  };
 }
 
 export default new MemberController();

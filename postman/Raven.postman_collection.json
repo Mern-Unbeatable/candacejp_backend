@@ -580,6 +580,68 @@
 							}
 						}
 					]
+				},
+				{
+					"name": "Travel Preferences",
+					"item": [
+						{
+							"name": "Get All Travel Preferences",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/travel-preferences",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "travel-preferences"]
+								}
+							}
+						},
+						{
+							"name": "Add Recurring Travel Preference",
+							"request": {
+								"method": "POST",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"type\": \"RECURRING\",\n  \"from\": \"TAMPA\",\n  \"to\": \"NYC\",\n  \"dayOfWeek\": \"Mondays\",\n  \"preferredTime\": \"Morning\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/member/travel-preferences",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "travel-preferences"]
+								}
+							}
+						},
+						{
+							"name": "Add One-Time Travel Preference",
+							"request": {
+								"method": "POST",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"type\": \"ONE_TIME\",\n  \"from\": \"NYC\",\n  \"to\": \"TAMPA\",\n  \"preferredDate\": \"2026-07-15\",\n  \"preferredTime\": \"Afternoon\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/member/travel-preferences",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "travel-preferences"]
+								}
+							}
+						},
+						{
+							"name": "Delete Travel Preference",
+							"request": {
+								"method": "DELETE",
+								"url": {
+									"raw": "{{baseUrl}}/api/member/travel-preferences/:id",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "travel-preferences", ":id"],
+									"variable": [
+										{ "key": "id", "value": "" }
+									]
+								}
+							}
+						}
+					]
 				}
 			]
 		}

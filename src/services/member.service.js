@@ -5,6 +5,11 @@ import {
   formatReservationForMember,
   getActivePassengerCount,
 } from '../utils/reservation.js';
+import {
+  formatTravelPreference,
+  groupTravelPreferences,
+  resolveRoute,
+} from '../utils/travelPreference.js';
 
 const reservationInclude = {
   opportunity: true,
@@ -206,6 +211,48 @@ class MemberService {
     });
 
     return formatReservationForMember(cancelled);
+  }
+
+  async getTravelPreferences(memberId) {
+    const preferences = await prisma.travelPreference.findMany({
+      where: { memberId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return groupTravelPreferences(preferences);
+  }
+
+  async createTravelPreference(memberId, payload) {
+    const { origin, destination, direction } = resolveRoute(payload.from, payload.to);
+
+    const preference = await prisma.travelPreference.create({
+      data: {
+        memberId,
+        isRecurring: payload.type === 'RECURRING',
+        direction,
+        origin,
+        destination,
+        dayOfWeek: payload.type === 'RECURRING' ? payload.dayOfWeek : null,
+        preferredDate: payload.type === 'ONE_TIME' ? new Date(payload.preferredDate) : null,
+        preferredTime: payload.preferredTime,
+      },
+    });
+
+    return formatTravelPreference(preference);
+  }
+
+  async deleteTravelPreference(memberId, preferenceId) {
+    const preference = await prisma.travelPreference.findFirst({
+      where: { id: preferenceId, memberId },
+    });
+
+    if (!preference) {
+      throw new Error('Travel preference not found');
+    }
+
+    await prisma.travelPreference.delete({
+      where: { id: preferenceId },
+    });
   }
 }
 
