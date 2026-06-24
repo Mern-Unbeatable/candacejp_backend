@@ -679,6 +679,57 @@
 							}
 						}
 					]
+				},
+				{
+					"name": "Profile",
+					"item": [
+						{
+							"name": "Get My Profile",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/users/me",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "users", "me"]
+								},
+								"description": "Returns the logged-in member's profile (firstName, lastName, address, city, state, zipCode, phone, email, etc.)."
+							}
+						},
+						{
+							"name": "Update My Profile",
+							"request": {
+								"method": "PUT",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Davis\",\n  \"address\": \"4140 Parker Rd. Allentown\",\n  \"zipCode\": \"31134\",\n  \"city\": \"New York City\",\n  \"state\": \"New York\",\n  \"phone\": \"+1 (555) 123-4567\",\n  \"email\": \"member@raven.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/users/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "users", "profile"]
+								},
+								"description": "Updates personal information. Matches the member Profile page fields."
+							}
+						},
+						{
+							"name": "Change My Password",
+							"request": {
+								"method": "PUT",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newSecurePassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/users/change-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "users", "change-password"]
+								},
+								"description": "Requires current password. New password must be at least 8 characters and different from the current one."
+							}
+						}
+					]
 				}
 			]
 		}

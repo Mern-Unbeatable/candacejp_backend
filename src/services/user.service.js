@@ -5,9 +5,9 @@ import bcrypt from 'bcryptjs';
 function parseName(data) {
   // If firstName/lastName are explicitly provided, use them
   if (data.firstName || data.lastName) {
-    return { 
-      firstName: data.firstName?.trim() || null, 
-      lastName: data.lastName?.trim() || null 
+    return {
+      firstName: data.firstName?.trim() || null,
+      lastName: data.lastName?.trim() || null
     };
   }
 
@@ -16,7 +16,7 @@ function parseName(data) {
     const trimmed = data.fullName.trim();
     const spaceIndex = trimmed.indexOf(' ');
     if (spaceIndex === -1) return { firstName: trimmed, lastName: null };
-    
+
     return {
       firstName: trimmed.slice(0, spaceIndex),
       lastName: trimmed.slice(spaceIndex + 1).trim()
@@ -30,14 +30,14 @@ class UserService {
   async getProfileById(id) {
     return await prisma.user.findUnique({
       where: { id },
-      omit: { password: true }
+      omit: { password: true, stripeCustomerId: true }
     });
   }
 
   async updateProfile(id, data) {
     // Process the name fields before passing to prisma
     const nameData = parseName(data);
-    
+
     return await prisma.user.update({
       where: { id },
       data: {
