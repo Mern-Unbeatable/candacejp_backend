@@ -11,6 +11,7 @@ import {
   resolveRoute,
 } from '../utils/travelPreference.js';
 import { normalizePassenger, resolveCustomTravelRoute } from '../utils/customTravel.js';
+import { parseDateOnly } from '../utils/dateOnly.js';
 
 const reservationInclude = {
   opportunity: true,
@@ -281,8 +282,8 @@ class MemberService {
         returnDirection: returnLeg?.direction ?? null,
         returnOrigin: returnLeg?.origin ?? null,
         returnDestination: returnLeg?.destination ?? null,
-        departureDate: new Date(payload.departureDate),
-        returnDate: payload.tripType === 'ROUND_TRIP' ? new Date(payload.returnDate) : null,
+        departureDate: parseDateOnly(payload.departureDate),
+        returnDate: payload.tripType === 'ROUND_TRIP' ? parseDateOnly(payload.returnDate) : null,
         passengerCount: payload.passengerCount,
         specialRequests: payload.specialRequests?.trim() || null,
         passengers: {

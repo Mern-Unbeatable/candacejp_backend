@@ -331,6 +331,88 @@
 			"name": "Staff",
 			"item": [
 				{
+					"name": "Dashboard",
+					"item": [
+						{
+							"name": "Get Dashboard Summary",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/dashboard/summary",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "dashboard", "summary"]
+								},
+								"description": "Top stats: totalInterest (custom travel requests only), scheduledFlights (CONFIRMED opportunities), weeklyDemandTrend, popularRoutes."
+							}
+						},
+						{
+							"name": "Get Calendar Month View",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/dashboard/calendar?month=6&year=2026",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "dashboard", "calendar"],
+									"query": [
+										{ "key": "month", "value": "6" },
+										{ "key": "year", "value": "2026" },
+										{ "key": "direction", "value": "NYC_TAMPA", "disabled": true }
+									]
+								},
+								"description": "Calendar grid for a single month."
+							}
+						},
+						{
+							"name": "Get Calendar Date Range",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/dashboard/calendar?from=2026-06-04&to=2026-07-04",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "dashboard", "calendar"],
+									"query": [
+										{ "key": "from", "value": "2026-06-04", "description": "Start date (YYYY-MM-DD)" },
+										{ "key": "to", "value": "2026-07-04", "description": "End date (YYYY-MM-DD)" },
+										{ "key": "direction", "value": "NYC_TAMPA", "disabled": true }
+									]
+								},
+								"description": "Calendar grid for a custom date range. Use from + to instead of month + year. startDate/endDate also work as aliases."
+							}
+						},
+						{
+							"name": "Get Calendar Date Interests",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/dashboard/calendar?date=2026-12-25",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "dashboard", "calendar"],
+									"query": [
+										{ "key": "date", "value": "2026-12-25" },
+										{ "key": "direction", "value": "NYC_TAMPA", "disabled": true }
+									]
+								},
+								"description": "All interests for a clicked calendar date, with route summary."
+							}
+						},
+						{
+							"name": "Get Interest Details",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/dashboard/calendar?interestId={{interestId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "dashboard", "calendar"],
+									"query": [
+										{ "key": "interestId", "value": "{{interestId}}", "description": "Custom travel request ID from calendar date interests list" }
+									]
+								},
+								"description": "Full modal details for a custom travel interest. Get interestId from 'Get Calendar Date Interests'."
+							}
+						}
+					]
+				},
+				{
 					"name": "opportunities",
 					"item": [
 						{

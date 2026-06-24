@@ -48,5 +48,44 @@ class StaffController {
             return sendSuccess(res, `Status updated to ${req.body.status}`, data);
         } catch (e) { return sendError(res, e.message, 400); }
     };
+
+    getDashboardSummary = async (req, res) => {
+        try {
+            const data = await staffService.getDashboardSummary();
+            return sendSuccess(res, 'Dashboard summary retrieved successfully.', data);
+        } catch (e) {
+            return sendError(res, e.message, 400);
+        }
+    };
+
+    getDashboardCalendar = async (req, res) => {
+        try {
+            const {
+                month,
+                year,
+                from,
+                to,
+                startDate,
+                endDate,
+                direction,
+                date,
+                interestId,
+            } = req.query;
+
+            const data = await staffService.getDashboardCalendar({
+                month,
+                year,
+                startDate: from || startDate,
+                endDate: to || endDate,
+                direction,
+                date,
+                interestId,
+            });
+            return sendSuccess(res, 'Dashboard calendar data retrieved successfully.', data);
+        } catch (e) {
+            const status = e.message === 'Interest not found' ? 404 : 400;
+            return sendError(res, e.message, status);
+        }
+    };
 }
 export default new StaffController();

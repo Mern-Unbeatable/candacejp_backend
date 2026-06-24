@@ -11,6 +11,9 @@ const staffOnly = requireRole(['CONCIERGE']);
 
 router.use(verifyToken);
 
+router.get('/dashboard/summary', adminOrStaff, staffController.getDashboardSummary);
+router.get('/dashboard/calendar', adminOrStaff, staffController.getDashboardCalendar);
+
 router.post('/opportunities', staffOnly, validate(staffValidation.createOpportunity), staffController.create);
 router.get('/opportunities', adminOrStaff, staffController.getAll);
 router.get('/opportunities/:id', adminOrStaff, staffController.getDetails);

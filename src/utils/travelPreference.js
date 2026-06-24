@@ -1,17 +1,9 @@
+import { DAY_OF_WEEK_OPTIONS } from './dateOnly.js';
+
 const LOCATION_LABELS = {
   NYC: 'New York',
   TAMPA: 'Tampa',
 };
-
-const DAY_OF_WEEK_OPTIONS = [
-  'Mondays',
-  'Tuesdays',
-  'Wednesdays',
-  'Thursdays',
-  'Fridays',
-  'Saturdays',
-  'Sundays',
-];
 
 const PREFERRED_TIME_OPTIONS = ['Morning', 'Afternoon', 'Evening'];
 
