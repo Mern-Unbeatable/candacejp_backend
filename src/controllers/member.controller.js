@@ -88,6 +88,15 @@ class MemberController {
       return sendError(res, error.message, status);
     }
   };
+
+  createCustomTravel = async (req, res) => {
+    try {
+      await memberService.createCustomTravelRequest(req.user.id, req.body);
+      return sendSuccess(res, 'Custom travel request submitted successfully.', null, 201);
+    } catch (error) {
+      return sendError(res, error.message, 400);
+    }
+  };
 }
 
 export default new MemberController();

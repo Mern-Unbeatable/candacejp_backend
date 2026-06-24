@@ -642,6 +642,43 @@
 							}
 						}
 					]
+				},
+				{
+					"name": "Custom Travel",
+					"item": [
+						{
+							"name": "Submit One-Way Custom Travel Request",
+							"request": {
+								"method": "POST",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"tripType\": \"ONE_WAY\",\n  \"origin\": \"NYC\",\n  \"destination\": \"TAMPA\",\n  \"departureDate\": \"2026-12-25\",\n  \"passengerCount\": 2,\n  \"passengers\": [\n    {\n      \"firstName\": \"John\",\n      \"lastName\": \"Davis\",\n      \"address\": \"450 7th Ave\",\n      \"zip\": \"10001\",\n      \"email\": \"john@example.com\",\n      \"phone\": \"+1-555-0198\"\n    },\n    {\n      \"firstName\": \"Jane\",\n      \"lastName\": \"Davis\",\n      \"address\": \"450 7th Ave\",\n      \"zip\": \"10001\",\n      \"email\": \"jane@example.com\",\n      \"phone\": \"+1-555-0199\"\n    }\n  ],\n  \"specialRequests\": \"Vegetarian meals for both passengers.\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/member/custom-travels",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "custom-travels"]
+								}
+							}
+						},
+						{
+							"name": "Submit Round-Trip Custom Travel Request",
+							"request": {
+								"method": "POST",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"tripType\": \"ROUND_TRIP\",\n  \"origin\": \"NYC\",\n  \"destination\": \"TAMPA\",\n  \"returnOrigin\": \"TAMPA\",\n  \"returnDestination\": \"NYC\",\n  \"departureDate\": \"2026-12-25\",\n  \"returnDate\": \"2026-12-30\",\n  \"passengerCount\": 1,\n  \"passengers\": [\n    {\n      \"firstName\": \"John\",\n      \"lastName\": \"Davis\",\n      \"address\": \"450 7th Ave\",\n      \"zip\": \"10001\",\n      \"email\": \"john@example.com\",\n      \"phone\": \"+1-555-0198\"\n    }\n  ],\n  \"specialRequests\": \"Late checkout preferred on return.\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/member/custom-travels",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "member", "custom-travels"]
+								}
+							}
+						}
+					]
 				}
 			]
 		}

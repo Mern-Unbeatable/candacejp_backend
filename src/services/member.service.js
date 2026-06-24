@@ -10,6 +10,7 @@ import {
   groupTravelPreferences,
   resolveRoute,
 } from '../utils/travelPreference.js';
+import { normalizePassenger, resolveCustomTravelRoute } from '../utils/customTravel.js';
 
 const reservationInclude = {
   opportunity: true,
@@ -252,6 +253,42 @@ class MemberService {
 
     await prisma.travelPreference.delete({
       where: { id: preferenceId },
+    });
+  }
+
+  async createCustomTravelRequest(memberId, payload) {
+    const member = await prisma.user.findUnique({ where: { id: memberId } });
+    if (!member || member.role !== 'MEMBER') {
+      throw new Error('Only members can submit custom travel requests');
+    }
+    if (member.status !== 'ACTIVE') {
+      throw new Error('Your account must be active before submitting a custom travel request');
+    }
+
+    const outbound = resolveCustomTravelRoute(payload.origin, payload.destination);
+    const returnLeg =
+      payload.tripType === 'ROUND_TRIP'
+        ? resolveCustomTravelRoute(payload.returnOrigin, payload.returnDestination)
+        : null;
+
+    await prisma.customTravelRequest.create({
+      data: {
+        memberId,
+        tripType: payload.tripType,
+        direction: outbound.direction,
+        origin: outbound.origin,
+        destination: outbound.destination,
+        returnDirection: returnLeg?.direction ?? null,
+        returnOrigin: returnLeg?.origin ?? null,
+        returnDestination: returnLeg?.destination ?? null,
+        departureDate: new Date(payload.departureDate),
+        returnDate: payload.tripType === 'ROUND_TRIP' ? new Date(payload.returnDate) : null,
+        passengerCount: payload.passengerCount,
+        specialRequests: payload.specialRequests?.trim() || null,
+        passengers: {
+          create: payload.passengers.map(normalizePassenger),
+        },
+      },
     });
   }
 }

@@ -20,4 +20,6 @@ router.get('/travel-preferences', memberController.getTravelPreferences);
 router.post('/travel-preferences', validate(memberValidation.createTravelPreference), memberController.createTravelPreference);
 router.delete('/travel-preferences/:id', memberController.deleteTravelPreference);
 
+router.post('/custom-travels', validate(memberValidation.createCustomTravel), memberController.createCustomTravel);
+
 export default router;

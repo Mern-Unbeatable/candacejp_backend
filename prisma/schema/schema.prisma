@@ -70,6 +70,7 @@ model User {
   // Relations
   reservations     Reservation[]
   preferences      TravelPreference[]
+  customTravelRequests CustomTravelRequest[]
   
   // Messaging relations
   sentMessages     Message[]       @relation("SentMessages")
@@ -194,6 +195,52 @@ model TravelPreference {
   @@index([direction])
   @@index([origin, destination])
   @@index([isRecurring])
+}
+
+model CustomTravelRequest {
+  id                 String                    @id @default(uuid())
+
+  member             User                      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId           String
+
+  tripType           TripType
+  direction          Direction
+  origin             String
+  destination        String
+  returnDirection    Direction?
+  returnOrigin       String?
+  returnDestination  String?
+  departureDate      DateTime
+  returnDate         DateTime?
+  passengerCount     Int
+  specialRequests    String?                   @db.Text
+
+  passengers         CustomTravelPassenger[]
+
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  @@index([memberId])
+  @@index([departureDate])
+}
+
+model CustomTravelPassenger {
+  id                    String              @id @default(uuid())
+
+  customTravelRequest   CustomTravelRequest @relation(fields: [customTravelRequestId], references: [id], onDelete: Cascade)
+  customTravelRequestId String
+
+  firstName             String
+  lastName              String
+  address               String?
+  zipCode               String?
+  email                 String?
+  phone                 String?
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([customTravelRequestId])
 }
 
 model Message {
