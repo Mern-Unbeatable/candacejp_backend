@@ -81,10 +81,12 @@
 							"script": {
 								"type": "text/javascript",
 								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.accessToken) {",
-									"  pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
-									"  pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+									"const jsonData = pm.response.json();",
+									"const tokens = jsonData.data || jsonData;",
+									"if (tokens.accessToken) {",
+									"  pm.collectionVariables.set('accessToken', tokens.accessToken);",
+									"  pm.collectionVariables.set('refreshToken', tokens.refreshToken);",
+									"  console.log('Tokens saved to collection variables.');",
 									"}"
 								]
 							}
@@ -123,10 +125,12 @@
 							"script": {
 								"type": "text/javascript",
 								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.accessToken) {",
-									"  pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
-									"  pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+									"const jsonData = pm.response.json();",
+									"const tokens = jsonData.data || jsonData;",
+									"if (tokens.accessToken) {",
+									"  pm.collectionVariables.set('accessToken', tokens.accessToken);",
+									"  pm.collectionVariables.set('refreshToken', tokens.refreshToken);",
+									"  console.log('Tokens saved to collection variables.');",
 									"}"
 								]
 							}
@@ -271,6 +275,52 @@
 							"request": {
 								"method": "DELETE",
 								"url": "{{baseUrl}}/api/admin/concierge/:id"
+							}
+						}
+					]
+				},
+				{
+					"name": "Profile",
+					"item": [
+						{
+							"name": "Get My Profile",
+							"request": {
+								"method": "GET",
+								"url": "{{baseUrl}}/api/users/me"
+							}
+						},
+						{
+							"name": "Update My Profile",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"fullName\": \"John Davis\",\n  \"email\": \"john.davis@example.com\"\n}"
+								},
+								"url": "{{baseUrl}}/api/users/profile"
+							}
+						},
+						{
+							"name": "Change My Password",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newSecurePassword123\"\n}"
+								},
+								"url": "{{baseUrl}}/api/users/change-password"
 							}
 						}
 					]
