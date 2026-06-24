@@ -301,7 +301,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"fullName\": \"John Davis\",\n  \"email\": \"john.davis@example.com\"\n}"
+									"raw": "{\n  \"fullName\": \"John Davis\",\n  \"email\": \"john.davis@example.com\",\n  \"phone\": \"+1 (555) 123-4567\"\n}"
 								},
 								"url": "{{baseUrl}}/api/users/profile"
 							}
@@ -419,6 +419,52 @@
 									"raw": "{\n  \"status\": \"CONFIRMED\"\n}"
 								},
 								"url": "{{baseUrl}}/api/staff/opportunities/:id/status"
+							}
+						}
+					]
+				},
+				{
+					"name": "Profile",
+					"item": [
+						{
+							"name": "Get My Profile",
+							"request": {
+								"method": "GET",
+								"url": "{{baseUrl}}/api/users/me"
+							}
+						},
+						{
+							"name": "Update My Profile",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"fullName\": \"John Davis\",\n  \"email\": \"john.davis@example.com\",\n  \"phone\": \"+1 (555) 123-4567\"\n}"
+								},
+								"url": "{{baseUrl}}/api/users/profile"
+							}
+						},
+						{
+							"name": "Change My Password",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newSecurePassword123\"\n}"
+								},
+								"url": "{{baseUrl}}/api/users/change-password"
 							}
 						}
 					]

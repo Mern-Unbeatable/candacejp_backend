@@ -5,13 +5,17 @@ import validate from '../middlewares/validate.middleware.js';
 import staffValidation from '../validations/staff.validation.js';
 
 const router = Router();
-router.use(authMiddleware.verifyToken, authMiddleware.requireRole(['ADMIN', 'CONCIERGE']));
+const { verifyToken, requireRole } = authMiddleware;
+const adminOrStaff = requireRole(['ADMIN', 'CONCIERGE']);
+const staffOnly = requireRole(['CONCIERGE']);
 
-router.post('/opportunities', validate(staffValidation.createOpportunity), staffController.create);
-router.get('/opportunities', staffController.getAll);
-router.get('/opportunities/:id', staffController.getDetails);
-router.put('/opportunities/:id', validate(staffValidation.editOpportunity), staffController.edit);
-router.patch('/opportunities/:id/publish', staffController.publish);
-router.patch('/opportunities/:id/status', validate(staffValidation.updateOpportunityStatus), staffController.updateStatus);
+router.use(verifyToken);
+
+router.post('/opportunities', staffOnly, validate(staffValidation.createOpportunity), staffController.create);
+router.get('/opportunities', adminOrStaff, staffController.getAll);
+router.get('/opportunities/:id', adminOrStaff, staffController.getDetails);
+router.put('/opportunities/:id', staffOnly, validate(staffValidation.editOpportunity), staffController.edit);
+router.patch('/opportunities/:id/publish', staffOnly, staffController.publish);
+router.patch('/opportunities/:id/status', staffOnly, validate(staffValidation.updateOpportunityStatus), staffController.updateStatus);
 
 export default router;
