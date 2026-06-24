@@ -6,6 +6,8 @@ import {
     formatCustomTravelInterest,
     formatDirectionLabel,
     formatDisplayDate,
+    formatInterestStatus,
+    formatMemberInterestListItem,
     formatMemberName,
     formatTripTypeLabel,
     getDayBounds,
@@ -18,6 +20,35 @@ import {
 import { formatDateLabel, getUtcWeekdayIndex, WEEK_DAYS_MONDAY_FIRST } from '../utils/dateOnly.js';
 
 const OPPORTUNITY_STATUSES = ['DRAFT', 'OPEN_FOR_RESERVATION', 'CONFIRMED', 'COMPLETED'];
+const MEMBER_INTEREST_STATUSES = ['INTERESTED', 'CONFIRMED'];
+
+function normalizeInterestDirection(direction) {
+    if (!direction || direction.toLowerCase() === 'all') return null;
+
+    const value = direction.toUpperCase().replace(/-/g, '_');
+    if (value === 'NYC_TAMPA' || value === 'TAMPA_NYC') return value;
+
+    throw new Error('Invalid direction filter. Use all, NYC_TAMPA, or TAMPA_NYC.');
+}
+
+function buildMemberInterestWhere({ direction, status }) {
+    const where = {};
+    const normalizedDirection = normalizeInterestDirection(direction);
+
+    if (normalizedDirection) {
+        where.direction = normalizedDirection;
+    }
+
+    if (status && status.toLowerCase() !== 'all') {
+        const normalizedStatus = status.toUpperCase();
+        if (!MEMBER_INTEREST_STATUSES.includes(normalizedStatus)) {
+            throw new Error('Invalid status filter. Use all, INTERESTED, or CONFIRMED.');
+        }
+        where.status = normalizedStatus;
+    }
+
+    return where;
+}
 
 function buildOpportunityWhere({ direction, status }) {
     const where = {};
@@ -392,7 +423,8 @@ class StaffService {
             route: formatDirectionLabel(request.direction),
             tripType: request.tripType,
             tripTypeLabel: formatTripTypeLabel(request.tripType),
-            status: 'INTERESTED',
+            status: formatInterestStatus(request.status),
+            interestStatus: request.status,
             passengerCount: request.passengerCount,
             routes,
             passengers: request.passengers.map((passenger, index) => ({
@@ -407,6 +439,76 @@ class StaffService {
             specialRequests: request.specialRequests,
             createdAt: request.createdAt,
         };
+    }
+
+    async getMemberInterests(page = 1, limit = 10, filters = {}) {
+        const currentPage = Math.max(1, parseInt(page, 10) || 1);
+        const perPage = Math.max(1, parseInt(limit, 10) || 10);
+        const skip = (currentPage - 1) * perPage;
+        const where = buildMemberInterestWhere(filters);
+
+        const [requests, total] = await Promise.all([
+            prisma.customTravelRequest.findMany({
+                where,
+                skip,
+                take: perPage,
+                orderBy: { departureDate: 'asc' },
+                include: {
+                    member: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                        },
+                    },
+                },
+            }),
+            prisma.customTravelRequest.count({ where }),
+        ]);
+
+        return {
+            interests: requests.map(formatMemberInterestListItem),
+            pagination: buildPagination(currentPage, perPage, total),
+        };
+    }
+
+    async deleteMemberInterest(id) {
+        const request = await prisma.customTravelRequest.findUnique({ where: { id } });
+
+        if (!request) {
+            throw new Error('Member interest not found');
+        }
+
+        await prisma.customTravelRequest.delete({ where: { id } });
+    }
+
+    async confirmMemberInterest(id) {
+        const request = await prisma.customTravelRequest.findUnique({ where: { id } });
+
+        if (!request) {
+            throw new Error('Member interest not found');
+        }
+        if (request.status !== 'INTERESTED') {
+            throw new Error('Only interested requests can be confirmed');
+        }
+
+        const updated = await prisma.customTravelRequest.update({
+            where: { id },
+            data: { status: 'CONFIRMED' },
+            include: {
+                member: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                    },
+                },
+            },
+        });
+
+        return formatMemberInterestListItem(updated);
     }
 }
 export default new StaffService();

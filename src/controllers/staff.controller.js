@@ -87,5 +87,35 @@ class StaffController {
             return sendError(res, e.message, status);
         }
     };
+
+    getMemberInterests = async (req, res) => {
+        try {
+            const { page = 1, limit = 10, direction = 'all', status = 'all' } = req.query;
+            const data = await staffService.getMemberInterests(page, limit, { direction, status });
+            return sendSuccess(res, 'Member interests retrieved successfully.', data);
+        } catch (e) {
+            return sendError(res, e.message, 400);
+        }
+    };
+
+    deleteMemberInterest = async (req, res) => {
+        try {
+            await staffService.deleteMemberInterest(req.params.id);
+            return sendSuccess(res, 'Member interest deleted successfully.');
+        } catch (e) {
+            const status = e.message === 'Member interest not found' ? 404 : 400;
+            return sendError(res, e.message, status);
+        }
+    };
+
+    confirmMemberInterest = async (req, res) => {
+        try {
+            const data = await staffService.confirmMemberInterest(req.params.id);
+            return sendSuccess(res, 'Member interest confirmed successfully.', data);
+        } catch (e) {
+            const status = e.message === 'Member interest not found' ? 404 : 400;
+            return sendError(res, e.message, status);
+        }
+    };
 }
 export default new StaffController();

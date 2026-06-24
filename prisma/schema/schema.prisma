@@ -48,6 +48,11 @@ enum ReservationStatus {
   CANCELLED
 }
 
+enum MemberInterestStatus {
+  INTERESTED
+  CONFIRMED
+}
+
 
 // --- MODELS ---
 
@@ -214,6 +219,7 @@ model CustomTravelRequest {
   returnDate         DateTime?
   passengerCount     Int
   specialRequests    String?                   @db.Text
+  status             MemberInterestStatus      @default(INTERESTED)
 
   passengers         CustomTravelPassenger[]
 
@@ -222,6 +228,8 @@ model CustomTravelRequest {
 
   @@index([memberId])
   @@index([departureDate])
+  @@index([direction])
+  @@index([status])
 }
 
 model CustomTravelPassenger {

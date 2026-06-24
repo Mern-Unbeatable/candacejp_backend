@@ -413,6 +413,53 @@
 					]
 				},
 				{
+					"name": "Member Interests",
+					"item": [
+						{
+							"name": "Get Member Interests (Paginated)",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/member-interests?page=1&limit=7&direction=all&status=all",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "member-interests"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "7" },
+										{ "key": "direction", "value": "all", "description": "all | NYC_TAMPA | TAMPA_NYC (nyc-tampa / tampa-nyc also accepted)" },
+										{ "key": "status", "value": "all", "description": "all | INTERESTED | CONFIRMED", "disabled": true }
+									]
+								},
+								"description": "Paginated member interest list for the concierge table. Returns name, email, departure (YYYY-MM-DD), direction, trip type, passengers, and status."
+							}
+						},
+						{
+							"name": "Confirm Member Interest",
+							"request": {
+								"method": "PATCH",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/member-interests/{{interestId}}/confirm",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "member-interests", "{{interestId}}", "confirm"]
+								},
+								"description": "Change status from Interested to Confirm. Only works when current status is INTERESTED."
+							}
+						},
+						{
+							"name": "Delete Member Interest",
+							"request": {
+								"method": "DELETE",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/member-interests/{{interestId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "staff", "member-interests", "{{interestId}}"]
+								},
+								"description": "Permanently delete a custom travel interest and its passengers."
+							}
+						}
+					]
+				},
+				{
 					"name": "opportunities",
 					"item": [
 						{

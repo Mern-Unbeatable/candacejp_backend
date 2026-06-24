@@ -14,6 +14,10 @@ router.use(verifyToken);
 router.get('/dashboard/summary', adminOrStaff, staffController.getDashboardSummary);
 router.get('/dashboard/calendar', adminOrStaff, staffController.getDashboardCalendar);
 
+router.get('/member-interests', adminOrStaff, staffController.getMemberInterests);
+router.delete('/member-interests/:id', adminOrStaff, staffController.deleteMemberInterest);
+router.patch('/member-interests/:id/confirm', adminOrStaff, staffController.confirmMemberInterest);
+
 router.post('/opportunities', staffOnly, validate(staffValidation.createOpportunity), staffController.create);
 router.get('/opportunities', adminOrStaff, staffController.getAll);
 router.get('/opportunities/:id', adminOrStaff, staffController.getDetails);

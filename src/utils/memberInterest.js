@@ -27,6 +27,16 @@ export function formatTripTypeLabel(tripType) {
   return 'One Way Trip';
 }
 
+export function formatTripTypeListLabel(tripType) {
+  if (tripType === 'ROUND_TRIP') return 'Round Trip';
+  return 'One Way';
+}
+
+export function formatInterestStatus(status) {
+  if (status === 'CONFIRMED') return 'Confirm';
+  return 'Interested';
+}
+
 export function getDemandLevel(count) {
   if (count >= 5) return 'high';
   if (count >= 3) return 'medium';
@@ -94,7 +104,8 @@ export function formatCustomTravelInterest(request) {
     returnDirection: request.returnDirection ?? null,
     tripType: request.tripType,
     tripTypeLabel: formatTripTypeLabel(request.tripType),
-    status: 'INTERESTED',
+    status: formatInterestStatus(request.status),
+    interestStatus: request.status,
     departureDate: request.departureDate,
     departureDateFormatted: departure,
     departure,
@@ -107,6 +118,26 @@ export function formatCustomTravelInterest(request) {
       : `Departure: ${departure}`,
     passengerCount: request.passengerCount,
     passengers: request.passengerCount,
+  };
+}
+
+export function formatMemberInterestListItem(request) {
+  const member = request.member;
+  const route = formatDirectionLabel(request.direction);
+
+  return {
+    id: request.id,
+    name: formatMemberName(member),
+    email: member.email,
+    departure: toDateKey(request.departureDate),
+    direction: route,
+    type: formatTripTypeListLabel(request.tripType),
+    passengers: request.passengerCount,
+    status: formatInterestStatus(request.status),
+    interestStatus: request.status,
+    tripType: request.tripType,
+    memberId: member.id,
+    createdAt: request.createdAt,
   };
 }
 
