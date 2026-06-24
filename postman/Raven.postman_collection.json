@@ -326,6 +326,104 @@
 					]
 				}
 			]
+		},
+		{
+			"name": "Concierge Staff",
+			"item": [
+				{
+					"name": "opportunities",
+					"item": [
+						{
+							"name": "Create Opportunity",
+							"request": {
+							  "method": "POST",
+							  "header": [{ "key": "Content-Type", "value": "application/json" }],
+							  "body": {
+								"mode": "raw",
+								"raw": "{\n  \"origin\": \"New York (TEB)\",\n  \"destination\": \"Tampa (TPA)\",\n  \"tripType\": \"ONE_WAY\",\n  \"departureDate\": \"2026-12-25T10:00:00Z\",\n  \"estimatedPrice\": 4200,\n  \"aircraftType\": \"Challenger 350\",\n  \"totalCapacity\": 8,\n  \"status\": \"DRAFT\"\n}"
+							  },
+							  "url": "{{baseUrl}}/api/staff/opportunities"
+							}
+						  },
+						{
+							"name": "Get All Opportunities (Filtered & Paginated)",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/staff/opportunities?page=1&limit=10&status=all&direction=NYC_TAMPA",
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "10"
+										},
+										{
+											"key": "status",
+											"value": "all",
+											"description": "all | DRAFT | OPEN_FOR_RESERVATION | CONFIRMED | COMPLETED"
+										},
+										{
+											"key": "direction",
+											"value": "NYC_TAMPA"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Opportunity Details",
+							"request": {
+								"method": "GET",
+								"url": "{{baseUrl}}/api/staff/opportunities/:id"
+							}
+						},
+						{
+							"name": "Edit Draft Opportunity",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"estimatedPrice\": 5200.00,\n  \"aircraftType\": \"Gulfstream G650\"\n}"
+								},
+								"url": "{{baseUrl}}/api/staff/opportunities/:id"
+							}
+						},
+						{
+							"name": "Publish (Draft to Open)",
+							"request": {
+								"method": "PATCH",
+								"url": "{{baseUrl}}/api/staff/opportunities/:id/publish"
+							}
+						},
+						{
+							"name": "Update Status (Confirm/Complete)",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"CONFIRMED\"\n}"
+								},
+								"url": "{{baseUrl}}/api/staff/opportunities/:id/status"
+							}
+						}
+					]
+				}
+			]
 		}
 	],
 	"variable": [

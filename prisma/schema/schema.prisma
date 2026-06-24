@@ -30,6 +30,11 @@ enum TripType {
   ROUND_TRIP
 }
 
+enum Direction {
+  NYC_TAMPA
+  TAMPA_NYC
+}
+
 enum OpportunityStatus {
   DRAFT
   OPEN_FOR_RESERVATION
@@ -84,6 +89,7 @@ model User {
 }
 model Opportunity {
   id               String            @id @default(uuid())
+  direction        Direction
   origin           String
   destination      String
   tripType         TripType
@@ -104,6 +110,7 @@ model Opportunity {
   updatedAt        DateTime          @updatedAt
 
   // High-traffic querying indexes based on the admin dashboard
+  @@index([direction])
   @@index([origin, destination])
   @@index([departureDate])
   @@index([status])
@@ -172,6 +179,7 @@ model TravelPreference {
   memberId         String
   
   isRecurring      Boolean   @default(false)
+  direction        Direction
   origin           String
   destination      String
   preferredDate    DateTime? // Nullable: Used for one-time requests
@@ -183,6 +191,7 @@ model TravelPreference {
   updatedAt        DateTime  @updatedAt
 
   @@index([memberId])
+  @@index([direction])
   @@index([origin, destination])
   @@index([isRecurring])
 }

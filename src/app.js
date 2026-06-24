@@ -4,6 +4,7 @@ import logger from "./utils/logger.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import staffRoutes from "./routes/staff.routes.js";
 import { sendError, sendSuccess } from "./utils/apiResponse.js";
 class App {
   constructor() {
@@ -41,6 +42,7 @@ class App {
     this.app.use('/api/auth', authRoutes);
     this.app.use('/api/admin', adminRoutes);
     this.app.use('/api/users', userRoutes);
+    this.app.use('/api/staff', staffRoutes);
 
     // Example of where your modular routes will be injected:
     // import userRoutes from './routes/user.routes.js';

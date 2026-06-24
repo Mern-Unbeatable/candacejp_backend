@@ -1,0 +1,52 @@
+import staffService from '../services/staff.service.js';
+import { sendSuccess, sendError } from '../utils/apiResponse.js';
+
+class StaffController {
+    create = async (req, res) => {
+        try {
+            // req.body now matches your UI: origin, destination, tripType, 
+            // departureDate, estimatedPrice, aircraftType, totalCapacity, status
+            const data = await staffService.createOpportunity(req.body, req.user.id);
+            return sendSuccess(res, 'Opportunity created successfully', data, 201);
+        } catch (e) {
+            return sendError(res, e.message, 400);
+        }
+    }
+
+    getAll = async (req, res) => {
+        try {
+            const { page = 1, limit = 10, direction, status = 'all' } = req.query;
+            const data = await staffService.getAllOpportunities(page, limit, { direction, status });
+            return sendSuccess(res, 'Opportunities retrieved successfully.', data);
+        } catch (e) { return sendError(res, e.message, 400); }
+    };
+
+    getDetails = async (req, res) => {
+        try {
+            const data = await staffService.getOpportunityDetails(req.params.id);
+            return data ? sendSuccess(res, 'Details retrieved', data) : sendError(res, 'Not found', 404);
+        } catch (e) { return sendError(res, e.message, 400); }
+    };
+
+    edit = async (req, res) => {
+        try {
+            const data = await staffService.editDraftOpportunity(req.params.id, req.body);
+            return sendSuccess(res, 'Opportunity updated', data);
+        } catch (e) { return sendError(res, e.message, 400); }
+    };
+
+    publish = async (req, res) => {
+        try {
+            const data = await staffService.publishOpportunity(req.params.id);
+            return sendSuccess(res, 'Opportunity is now Open for Reservation', data);
+        } catch (e) { return sendError(res, e.message, 400); }
+    };
+
+    updateStatus = async (req, res) => {
+        try {
+            const data = await staffService.updateReservationStatus(req.params.id, req.body.status);
+            return sendSuccess(res, `Status updated to ${req.body.status}`, data);
+        } catch (e) { return sendError(res, e.message, 400); }
+    };
+}
+export default new StaffController();
