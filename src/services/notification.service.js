@@ -132,6 +132,41 @@ class NotificationService {
     });
   }
 
+  buildOpportunityOpenPayload(opportunity) {
+    const route = formatRoute(opportunity.origin, opportunity.destination);
+    const date = formatDisplayDate(opportunity.departureDate);
+
+    return {
+      title: 'New Travel Opportunity',
+      description: `A new travel opportunity for ${route} is now open for reservation.`,
+      route,
+      date,
+      referenceId: opportunity.id,
+      referenceType: 'OPPORTUNITY',
+    };
+  }
+
+  async notifyAllMembersOpportunityOpen(opportunity) {
+    const members = await prisma.user.findMany({
+      where: { role: 'MEMBER', status: 'ACTIVE' },
+      select: { id: true },
+    });
+
+    if (!members.length) {
+      return;
+    }
+
+    const payload = this.buildOpportunityOpenPayload(opportunity);
+
+    await prisma.notification.createMany({
+      data: members.map((member) => ({
+        memberId: member.id,
+        type: 'OPPORTUNITY_NEW',
+        content: JSON.stringify(payload),
+      })),
+    });
+  }
+
   async getMemberNotifications(memberId, page = 1, limit = 10) {
     const currentPage = Math.max(1, parseInt(page, 10) || 1);
     const perPage = Math.max(1, parseInt(limit, 10) || 10);
