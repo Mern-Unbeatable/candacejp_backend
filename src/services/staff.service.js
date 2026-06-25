@@ -263,6 +263,8 @@ class StaffService {
             await Promise.all(
                 pendingReservations.map((reservation) => this.confirmReservation(reservation.id))
             );
+
+            await notificationService.notifyAllMembersOpportunityConfirmed(updatedOpportunity);
         }
 
         return updatedOpportunity;

@@ -13,6 +13,7 @@ const UI_TYPE_MAP = {
   MEMBER_INTEREST_CONFIRMED: 'confirmed',
   RESERVATION_CONFIRMED: 'confirmed',
   OPPORTUNITY_NEW: 'new',
+  OPPORTUNITY_CONFIRMED: 'confirmed',
   RESERVATION_PENDING: 'pending',
   TRIP_CONFIRMED: 'confirmed',
 };
@@ -162,6 +163,41 @@ class NotificationService {
       data: members.map((member) => ({
         memberId: member.id,
         type: 'OPPORTUNITY_NEW',
+        content: JSON.stringify(payload),
+      })),
+    });
+  }
+
+  buildOpportunityConfirmedPayload(opportunity) {
+    const route = formatRoute(opportunity.origin, opportunity.destination);
+    const date = formatDisplayDate(opportunity.departureDate);
+
+    return {
+      title: 'Travel Opportunity Confirmed',
+      description: `The travel opportunity for ${route} has been confirmed.`,
+      route,
+      date,
+      referenceId: opportunity.id,
+      referenceType: 'OPPORTUNITY',
+    };
+  }
+
+  async notifyAllMembersOpportunityConfirmed(opportunity) {
+    const members = await prisma.user.findMany({
+      where: { role: 'MEMBER', status: 'ACTIVE' },
+      select: { id: true },
+    });
+
+    if (!members.length) {
+      return;
+    }
+
+    const payload = this.buildOpportunityConfirmedPayload(opportunity);
+
+    await prisma.notification.createMany({
+      data: members.map((member) => ({
+        memberId: member.id,
+        type: 'OPPORTUNITY_CONFIRMED',
         content: JSON.stringify(payload),
       })),
     });
