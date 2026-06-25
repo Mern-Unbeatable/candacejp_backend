@@ -162,7 +162,7 @@ class StaffService {
                 where,
                 skip,
                 take: perPage,
-                orderBy: { departureDate: 'asc' },
+                orderBy: { createdAt: 'desc' },
             }),
             prisma.opportunity.count({ where }),
         ]);
