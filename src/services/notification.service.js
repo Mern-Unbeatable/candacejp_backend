@@ -56,6 +56,7 @@ export function formatNotification(notification) {
     date: payload.date ?? null,
     referenceId: payload.referenceId ?? null,
     referenceType: payload.referenceType ?? null,
+    opportunityId: payload.opportunityId ?? null,
     isRead: notification.isRead,
     createdAt: notification.createdAt,
   };
@@ -130,6 +131,7 @@ class NotificationService {
       date,
       referenceId: reservation.id,
       referenceType: 'RESERVATION',
+      opportunityId: opportunity.id,
     });
   }
 
@@ -182,20 +184,24 @@ class NotificationService {
     };
   }
 
-  async notifyAllMembersOpportunityConfirmed(opportunity) {
+  async notifyAllMembersOpportunityConfirmed(opportunity, excludeMemberIds = []) {
+    const excludeSet = new Set(excludeMemberIds);
+
     const members = await prisma.user.findMany({
       where: { role: 'MEMBER', status: 'ACTIVE' },
       select: { id: true },
     });
 
-    if (!members.length) {
+    const recipients = members.filter((member) => !excludeSet.has(member.id));
+
+    if (!recipients.length) {
       return;
     }
 
     const payload = this.buildOpportunityConfirmedPayload(opportunity);
 
     await prisma.notification.createMany({
-      data: members.map((member) => ({
+      data: recipients.map((member) => ({
         memberId: member.id,
         type: 'OPPORTUNITY_CONFIRMED',
         content: JSON.stringify(payload),

@@ -257,14 +257,18 @@ class StaffService {
         if (newStatus === 'CONFIRMED') {
             const pendingReservations = await prisma.reservation.findMany({
                 where: { opportunityId: id, status: 'PENDING' },
-                select: { id: true },
+                select: { id: true, memberId: true },
             });
 
             await Promise.all(
                 pendingReservations.map((reservation) => this.confirmReservation(reservation.id))
             );
 
-            await notificationService.notifyAllMembersOpportunityConfirmed(updatedOpportunity);
+            const reservedMemberIds = pendingReservations.map((reservation) => reservation.memberId);
+            await notificationService.notifyAllMembersOpportunityConfirmed(
+                updatedOpportunity,
+                reservedMemberIds
+            );
         }
 
         return updatedOpportunity;
