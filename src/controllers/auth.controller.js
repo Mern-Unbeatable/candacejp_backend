@@ -55,7 +55,12 @@ class AuthController {
       }
 
       if (error.message === 'PaymentRequired') {
-        return sendError(res, 'Registration fee pending. Please complete your payment.', 402);
+        return sendError(
+          res,
+          'Registration fee pending. Please complete your payment.',
+          402,
+          { requiresRegistration: true }
+        );
       }
 
       if (error.message === 'MemberAccountInactive') {
