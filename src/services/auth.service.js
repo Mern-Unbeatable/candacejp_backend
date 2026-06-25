@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import prisma from '../lib/prisma.js';
+import { getInactiveAccountErrorCode } from '../utils/accountStatus.js';
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -126,6 +127,10 @@ class AuthService {
       throw new Error("PaymentRequired");
     }
 
+    if (user.status !== 'ACTIVE') {
+      throw new Error(getInactiveAccountErrorCode(user.role));
+    }
+
     const tokens = this.generateTokens(user);
     
     // SECURELY remove the password AND stripeCustomerId from the user object
@@ -146,8 +151,12 @@ class AuthService {
 
       // Ensure user exists and is active
       const user = await prisma.user.findUnique({ where: { id: decoded.id } });
-      if (!user || user.status !== 'ACTIVE') {
-        throw new Error("User account is no longer active");
+      if (!user) {
+        throw new Error('Invalid or expired refresh token');
+      }
+
+      if (user.status !== 'ACTIVE') {
+        throw new Error(getInactiveAccountErrorCode(user.role));
       }
 
       // Generate a new set of tokens
@@ -155,7 +164,11 @@ class AuthService {
       return tokens;
 
     } catch (error) {
-      throw new Error("Invalid or expired refresh token");
+      if (error.message === 'MemberAccountInactive' || error.message === 'AccountInactive') {
+        throw error;
+      }
+
+      throw new Error('Invalid or expired refresh token');
     }
   }
 }

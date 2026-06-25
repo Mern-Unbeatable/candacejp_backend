@@ -1,5 +1,6 @@
 import authService from '../services/auth.service.js';
 import logger from '../utils/logger.js';
+import { getInactiveAccountMessage } from '../utils/accountStatus.js';
 import { sendError, sendSuccess } from '../utils/apiResponse.js';
 
 class AuthController {
@@ -57,6 +58,14 @@ class AuthController {
         return sendError(res, 'Registration fee pending. Please complete your payment.', 402);
       }
 
+      if (error.message === 'MemberAccountInactive') {
+        return sendError(res, getInactiveAccountMessage('MEMBER'), 403);
+      }
+
+      if (error.message === 'AccountInactive') {
+        return sendError(res, getInactiveAccountMessage('CONCIERGE'), 403);
+      }
+
       return sendError(res, 'An unexpected error occurred during login.', 500);
     }
   };
@@ -70,6 +79,15 @@ class AuthController {
       return sendSuccess(res, 'Token refreshed successfully.', result);
     } catch (error) {
       logger.warn(`Failed token refresh attempt: ${error.message}`);
+
+      if (error.message === 'MemberAccountInactive') {
+        return sendError(res, getInactiveAccountMessage('MEMBER'), 403);
+      }
+
+      if (error.message === 'AccountInactive') {
+        return sendError(res, getInactiveAccountMessage('CONCIERGE'), 403);
+      }
+
       return sendError(res, error.message, 403);
     }
   };
