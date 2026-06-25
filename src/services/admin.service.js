@@ -1,8 +1,41 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma.js';
 import { buildPagination } from '../utils/pagination.js';
+import {
+    countScheduledFlights,
+    getScheduledFlightConfirmations,
+} from '../utils/dashboardMetrics.js';
 
 const safeUser = { omit: { password: true } };
+const REGISTRATION_FEE_USD = 199;
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getYearBounds(year) {
+    const parsedYear = Number.parseInt(year, 10) || new Date().getUTCFullYear();
+    return {
+        year: parsedYear,
+        start: new Date(Date.UTC(parsedYear, 0, 1)),
+        end: new Date(Date.UTC(parsedYear + 1, 0, 1)),
+    };
+}
+
+function toMonthlyBuckets(records, dateKey = 'createdAt') {
+    const buckets = Array.from({ length: 12 }, (_, index) => ({
+        month: MONTH_LABELS[index],
+        value: 0,
+    }));
+
+    records.forEach((record) => {
+        const date = record[dateKey];
+        if (!date) return;
+        const monthIndex = new Date(date).getUTCMonth();
+        if (monthIndex >= 0 && monthIndex <= 11) {
+            buckets[monthIndex].value += 1;
+        }
+    });
+
+    return buckets;
+}
 
 function parseName({ name, firstName, lastName }) {
     if (firstName !== undefined || lastName !== undefined) {
@@ -163,6 +196,109 @@ class AdminService {
                 email: data.email
             }
         });
+    }
+
+    async getDashboardOverview() {
+        const [
+            totalMembers,
+            totalStaff,
+            totalCustomTravelInterests,
+            totalTravelPreferences,
+            activeMembers,
+            memberRegistrations,
+            travelPreferenceDirections,
+            customTravelDirections,
+        ] = await Promise.all([
+            prisma.user.count({ where: { role: 'MEMBER' } }),
+            prisma.user.count({ where: { role: 'CONCIERGE' } }),
+            prisma.customTravelRequest.count(),
+            prisma.travelPreference.count(),
+            prisma.user.count({ where: { role: 'MEMBER', status: 'ACTIVE' } }),
+            prisma.user.findMany({
+                where: { role: 'MEMBER' },
+                select: { createdAt: true },
+            }),
+            prisma.travelPreference.findMany({
+                select: { direction: true },
+            }),
+            prisma.customTravelRequest.findMany({
+                select: { direction: true },
+            }),
+        ]);
+
+        const routeCounts = { NYC_TAMPA: 0, TAMPA_NYC: 0 };
+        [...travelPreferenceDirections, ...customTravelDirections].forEach(({ direction }) => {
+            if (routeCounts[direction] !== undefined) {
+                routeCounts[direction] += 1;
+            }
+        });
+        const routeTotal = routeCounts.NYC_TAMPA + routeCounts.TAMPA_NYC;
+
+        return {
+            totals: {
+                totalMembers,
+                totalStaff,
+                totalInterest: totalCustomTravelInterests + totalTravelPreferences,
+                totalRevenue: activeMembers * REGISTRATION_FEE_USD,
+                currency: 'USD',
+                registrationFee: REGISTRATION_FEE_USD,
+            },
+            demandOverview: toMonthlyBuckets(memberRegistrations),
+            popularRoutes: [
+                {
+                    route: 'NYC → Tampa',
+                    count: routeCounts.NYC_TAMPA,
+                    percentage: routeTotal ? Number(((routeCounts.NYC_TAMPA / routeTotal) * 100).toFixed(1)) : 0,
+                },
+                {
+                    route: 'Tampa → NYC',
+                    count: routeCounts.TAMPA_NYC,
+                    percentage: routeTotal ? Number(((routeCounts.TAMPA_NYC / routeTotal) * 100).toFixed(1)) : 0,
+                },
+            ],
+        };
+    }
+
+    async getMembersOverTime(year) {
+        const { year: selectedYear, start, end } = getYearBounds(year);
+        const records = await prisma.user.findMany({
+            where: { role: 'MEMBER', createdAt: { gte: start, lt: end } },
+            select: { createdAt: true },
+        });
+
+        return {
+            year: selectedYear,
+            membersOverTime: toMonthlyBuckets(records),
+        };
+    }
+
+    async getMonthlyActivity(year) {
+        const { year: selectedYear, start, end } = getYearBounds(year);
+        const [opportunities, reservations, scheduledFlightConfirmations] = await Promise.all([
+            prisma.opportunity.findMany({
+                where: { createdAt: { gte: start, lt: end } },
+                select: { createdAt: true },
+            }),
+            prisma.reservation.findMany({
+                where: { createdAt: { gte: start, lt: end } },
+                select: { createdAt: true },
+            }),
+            getScheduledFlightConfirmations(prisma, { start, end }),
+        ]);
+
+        const opportunityBuckets = toMonthlyBuckets(opportunities);
+        const reservationBuckets = toMonthlyBuckets(reservations);
+        const flightBookedBuckets = toMonthlyBuckets(scheduledFlightConfirmations, 'updatedAt');
+
+        return {
+            year: selectedYear,
+            monthlyActivity: MONTH_LABELS.map((month, index) => ({
+                month,
+                travelOpportunities: opportunityBuckets[index].value,
+                reservations: reservationBuckets[index].value,
+                flightsBooked: flightBookedBuckets[index].value,
+            })),
+        };
     }
 }
 export default new AdminService();

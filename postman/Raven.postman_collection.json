@@ -167,6 +167,53 @@
 			"name": "Admin",
 			"item": [
 				{
+					"name": "Dashboard",
+					"item": [
+						{
+							"name": "Get Overview",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/dashboard/overview",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "dashboard", "overview"]
+								},
+								"description": "All-time dashboard cards, demand overview (member registrations by month across all years), and popular routes. No year filter."
+							}
+						},
+						{
+							"name": "Get Members Over Time",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/dashboard/members-over-time?year=2026",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "dashboard", "members-over-time"],
+									"query": [
+										{ "key": "year", "value": "2026" }
+									]
+								},
+								"description": "Monthly member registrations for line chart."
+							}
+						},
+						{
+							"name": "Get Monthly Activity",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/dashboard/monthly-activity?year=2026",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "dashboard", "monthly-activity"],
+									"query": [
+										{ "key": "year", "value": "2026" }
+									]
+								},
+								"description": "Monthly activity. flightsBooked = confirmed opportunities + confirmed member interests + confirmed travel preferences in that year."
+							}
+						}
+					]
+				},
+				{
 					"name": "member",
 					"item": [
 						{
@@ -342,7 +389,7 @@
 									"host": ["{{baseUrl}}"],
 									"path": ["api", "staff", "dashboard", "summary"]
 								},
-								"description": "Top stats: totalInterest (custom travel requests only), scheduledFlights (CONFIRMED opportunities), weeklyDemandTrend, popularRoutes."
+								"description": "Top stats: totalInterest (custom travel requests only), scheduledFlights (confirmed opportunities + member interests + travel preferences), weeklyDemandTrend, popularRoutes."
 							}
 						},
 						{

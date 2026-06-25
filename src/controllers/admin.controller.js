@@ -95,6 +95,35 @@ class AdminController {
             return sendError(res, 'Failed to update member information', 400);
         }
     };
+
+    getDashboardOverview = async (req, res) => {
+        try {
+            const data = await adminService.getDashboardOverview();
+            return sendSuccess(res, 'Admin dashboard overview retrieved successfully.', data);
+        } catch (error) {
+            return sendError(res, error.message, 400);
+        }
+    };
+
+    getMembersOverTime = async (req, res) => {
+        try {
+            const { year } = req.query;
+            const data = await adminService.getMembersOverTime(year);
+            return sendSuccess(res, 'Members over time retrieved successfully.', data);
+        } catch (error) {
+            return sendError(res, error.message, 400);
+        }
+    };
+
+    getMonthlyActivity = async (req, res) => {
+        try {
+            const { year } = req.query;
+            const data = await adminService.getMonthlyActivity(year);
+            return sendSuccess(res, 'Monthly activity retrieved successfully.', data);
+        } catch (error) {
+            return sendError(res, error.message, 400);
+        }
+    };
 }
 
 export default new AdminController();

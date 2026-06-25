@@ -6,6 +6,11 @@ const router = Router();
 
 router.use(authMiddleware.verifyToken, authMiddleware.requireRole(['ADMIN']));
 
+// Dashboard
+router.get('/dashboard/overview', adminController.getDashboardOverview);
+router.get('/dashboard/members-over-time', adminController.getMembersOverTime);
+router.get('/dashboard/monthly-activity', adminController.getMonthlyActivity);
+
 // Concierge management
 router.post('/concierge', adminController.addStaff);
 router.get('/concierge', adminController.getStaff);

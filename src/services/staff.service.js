@@ -18,6 +18,7 @@ import {
     toDateKey,
 } from '../utils/memberInterest.js';
 import { formatDateLabel, getUtcWeekdayIndex, WEEK_DAYS_MONDAY_FIRST } from '../utils/dateOnly.js';
+import { countScheduledFlights } from '../utils/dashboardMetrics.js';
 import notificationService from './notification.service.js';
 import {
     formatStaffTravelPreferenceDetails,
@@ -324,7 +325,7 @@ class StaffService {
     async getDashboardSummary() {
         const [customTravelCount, scheduledFlights, customTravels] = await Promise.all([
             prisma.customTravelRequest.count(),
-            prisma.opportunity.count({ where: { status: 'CONFIRMED' } }),
+            countScheduledFlights(prisma),
             prisma.customTravelRequest.findMany({ select: { direction: true, departureDate: true } }),
         ]);
 
