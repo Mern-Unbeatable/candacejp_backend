@@ -164,6 +164,61 @@
 			]
 		},
 		{
+			"name": "Public",
+			"description": "Public endpoints that do not require authentication.",
+			"auth": {
+				"type": "noauth"
+			},
+			"item": [
+				{
+					"name": "Support",
+					"item": [
+						{
+							"name": "Submit Support Request",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"const jsonData = pm.response.json();",
+											"const data = jsonData.data || jsonData;",
+											"if (data.id) {",
+											"  pm.collectionVariables.set('supportRequestId', data.id);",
+											"  console.log('supportRequestId saved:', data.id);",
+											"}"
+										]
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"John Doe\",\n  \"phone\": \"3103754545\",\n  \"email\": \"john@example.com\",\n  \"message\": \"I have a question about membership.\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/support",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "support"]
+								},
+								"description": "Public contact form submission. No auth required. Creates a support request with status NEW."
+							}
+						}
+					]
+				}
+			]
+		},
+		{
 			"name": "Admin",
 			"item": [
 				{
@@ -322,6 +377,100 @@
 							"request": {
 								"method": "DELETE",
 								"url": "{{baseUrl}}/api/admin/concierge/:id"
+							}
+						}
+					]
+				},
+				{
+					"name": "Support",
+					"item": [
+						{
+							"name": "Get All Support Requests",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/support?page=1&limit=10&status=all",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "support"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "10" },
+										{
+											"key": "status",
+											"value": "all",
+											"description": "all | NEW | SOLVED"
+										}
+									]
+								},
+								"description": "Admin only. List support requests (newest first). Filter by status: all, NEW, or SOLVED."
+							}
+						},
+						{
+							"name": "Get New Support Requests",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/support?page=1&limit=10&status=NEW",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "support"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "10" },
+										{ "key": "status", "value": "NEW" }
+									]
+								},
+								"description": "Admin only. List support requests with status NEW."
+							}
+						},
+						{
+							"name": "Get Solved Support Requests",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/support?page=1&limit=10&status=SOLVED",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "support"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "10" },
+										{ "key": "status", "value": "SOLVED" }
+									]
+								},
+								"description": "Admin only. List support requests with status SOLVED."
+							}
+						},
+						{
+							"name": "Mark Support Request as Solved",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"SOLVED\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/support/{{supportRequestId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "support", "{{supportRequestId}}"]
+								},
+								"description": "Admin only. Changes support request status from NEW to SOLVED."
+							}
+						},
+						{
+							"name": "Delete Support Request",
+							"request": {
+								"method": "DELETE",
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/support/{{supportRequestId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "support", "{{supportRequestId}}"]
+								},
+								"description": "Admin only. Permanently deletes a support request."
 							}
 						}
 					]
@@ -1116,6 +1265,11 @@
 		},
 		{
 			"key": "interestId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "supportRequestId",
 			"value": "",
 			"type": "string"
 		}

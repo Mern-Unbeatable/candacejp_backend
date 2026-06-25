@@ -53,6 +53,11 @@ enum MemberInterestStatus {
   CONFIRMED
 }
 
+enum SupportStatus {
+  NEW
+  SOLVED
+}
+
 
 // --- MODELS ---
 
@@ -281,4 +286,19 @@ model Notification {
 
   @@index([memberId])
   @@index([isRead])
+}
+
+model SupportRequest {
+  id        String        @id @default(uuid())
+  name      String
+  phone     String
+  email     String
+  message   String        @db.Text
+  status    SupportStatus @default(NEW)
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }
