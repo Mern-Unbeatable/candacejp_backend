@@ -718,6 +718,23 @@
 		{
 			"name": "Member",
 			"item": [
+						{
+							"name": "Dashboard",
+							"item": [
+								{
+									"name": "Get Member Dashboard Overview",
+									"request": {
+										"method": "GET",
+										"url": {
+											"raw": "{{baseUrl}}/api/member/dashboard/overview",
+											"host": ["{{baseUrl}}"],
+											"path": ["api", "member", "dashboard", "overview"]
+										},
+										"description": "Top cards, demand insights, and upcoming trips preview for member overview page."
+									}
+								}
+							]
+						},
 				{
 					"name": "Travel Opportunities",
 					"item": [

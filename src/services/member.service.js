@@ -14,7 +14,7 @@ import {
 } from '../utils/travelPreference.js';
 import { normalizePassenger, resolveCustomTravelRoute } from '../utils/customTravel.js';
 import { formatCustomTravelForUpcoming } from '../utils/memberInterest.js';
-import { parseDateOnly } from '../utils/dateOnly.js';
+import { formatDisplayDate, parseDateOnly, toDateKey } from '../utils/dateOnly.js';
 
 const reservationInclude = {
   opportunity: true,
@@ -26,6 +26,128 @@ const reservationInclude = {
 };
 
 class MemberService {
+  async getDashboardOverview(memberId) {
+    const [travelOpportunities, pendingReservations, upcomingTripsData] = await Promise.all([
+      prisma.opportunity.count({ where: { status: 'OPEN_FOR_RESERVATION' } }),
+      prisma.reservation.count({ where: { memberId, status: 'PENDING' } }),
+      this.getUpcomingTrips(memberId, 1, 3),
+    ]);
+
+    const upcomingTrips = upcomingTripsData.trips.map((trip) => ({
+      id: trip.id,
+      source: trip.source,
+      route: trip.route,
+      time: trip.departureTime
+        ? `${trip.departureDate}, ${trip.departureTime}`
+        : (trip.departureDate instanceof Date ? formatDisplayDate(trip.departureDate) : String(trip.departureDate)),
+      type: trip.type,
+    }));
+
+    const upcomingTripsCount = upcomingTripsData.pagination.total;
+
+    const [preferences, customRequests, confirmedOpportunities] = await Promise.all([
+      prisma.travelPreference.findMany({
+        select: {
+          direction: true,
+          dayOfWeek: true,
+          preferredTime: true,
+          preferredDate: true,
+          memberId: true,
+        },
+      }),
+      prisma.customTravelRequest.findMany({
+        select: {
+          direction: true,
+          departureDate: true,
+          memberId: true,
+        },
+      }),
+      prisma.opportunity.findMany({
+        where: { status: 'CONFIRMED' },
+        select: {
+          direction: true,
+          departureDate: true,
+        },
+      }),
+    ]);
+
+    const directionLabel = (direction) => (direction === 'NYC_TAMPA' ? 'NYC → Tampa' : 'Tampa → NYC');
+    const normalizeDow = (value) => value?.replace(/s$/i, '') || 'Flexible';
+    const normalizeTime = (value) => {
+      if (!value) return 'Anytime';
+      if (value === 'Morning') return 'Mornings';
+      if (value === 'Evening') return 'Evenings';
+      if (value === 'Afternoon') return 'Afternoons';
+      return value;
+    };
+
+    const routeTimeCounts = new Map();
+    const totalRouteTimeEntries = preferences.length + customRequests.length || 1;
+
+    preferences.forEach((item) => {
+      const key = `${item.direction}|${normalizeDow(item.dayOfWeek)} ${normalizeTime(item.preferredTime)}`;
+      routeTimeCounts.set(key, (routeTimeCounts.get(key) || 0) + 1);
+    });
+
+    customRequests.forEach((item) => {
+      const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(item.departureDate);
+      const key = `${item.direction}|${weekday} Anytime`;
+      routeTimeCounts.set(key, (routeTimeCounts.get(key) || 0) + 1);
+    });
+
+    const highDemandRoutes = [...routeTimeCounts.entries()]
+      .map(([key, count]) => {
+        const [direction, time] = key.split('|');
+        const percentage = Math.round((count / totalRouteTimeEntries) * 100);
+        return {
+          route: directionLabel(direction),
+          time,
+          stat: `+${percentage}%`,
+          count,
+        };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4)
+      .map(({ route, time, stat }) => ({ route, time, stat }));
+
+    const dateCounts = new Map();
+    const addDateHit = (date, memberIdValue = null) => {
+      if (!date) return;
+      const key = toDateKey(date);
+      const current = dateCounts.get(key) || { routes: 0, members: new Set() };
+      current.routes += 1;
+      if (memberIdValue) current.members.add(memberIdValue);
+      dateCounts.set(key, current);
+    };
+
+    preferences.forEach((item) => addDateHit(item.preferredDate, item.memberId));
+    customRequests.forEach((item) => addDateHit(item.departureDate, item.memberId));
+    confirmedOpportunities.forEach((item) => addDateHit(item.departureDate));
+
+    const popularTravelDates = [...dateCounts.entries()]
+      .map(([dateKey, metrics]) => ({
+        date: formatDisplayDate(new Date(`${dateKey}T12:00:00.000Z`)),
+        details: `${metrics.routes} routes · ${metrics.members.size || metrics.routes} members`,
+        score: metrics.routes + metrics.members.size,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map(({ date, details }) => ({ date, details }));
+
+    return {
+      stats: {
+        travelOpportunities,
+        pendingReservations,
+        upcomingTrips: upcomingTripsCount,
+      },
+      demandInsights: {
+        highDemandRoutes,
+        popularTravelDates,
+      },
+      upcomingTrips,
+    };
+  }
+
   async getAvailableOpportunities(memberId, page = 1, limit = 10, filters = {}) {
     const currentPage = Math.max(1, parseInt(page, 10) || 1);
     const perPage = Math.max(1, parseInt(limit, 10) || 10);

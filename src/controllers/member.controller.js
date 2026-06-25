@@ -2,6 +2,15 @@ import memberService from '../services/member.service.js';
 import { sendError, sendSuccess } from '../utils/apiResponse.js';
 
 class MemberController {
+  getDashboardOverview = async (req, res) => {
+    try {
+      const data = await memberService.getDashboardOverview(req.user.id);
+      return sendSuccess(res, 'Member dashboard overview retrieved successfully.', data);
+    } catch (error) {
+      return sendError(res, error.message, 400);
+    }
+  };
+
   getOpportunities = async (req, res) => {
     try {
       const { page = 1, limit = 10, direction } = req.query;

@@ -9,6 +9,8 @@ const { verifyToken, requireRole } = authMiddleware;
 
 router.use(verifyToken, requireRole(['MEMBER']));
 
+router.get('/dashboard/overview', memberController.getDashboardOverview);
+
 router.get('/opportunities', memberController.getOpportunities);
 router.post('/opportunities/:id/reservations', memberController.placeReservation);
 router.get('/reservations/pending', memberController.getPendingReservations);
