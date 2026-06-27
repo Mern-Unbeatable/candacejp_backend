@@ -28,6 +28,38 @@ class AuthService {
     return { accessToken, refreshToken };
   }
 
+  async createRegistrationCheckoutSession(user, { cancelUrl } = {}) {
+    const sessionConfig = {
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Raven Membership Registration',
+              description: 'One-time registration fee for the Raven platform.',
+            },
+            unit_amount: 19900,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      client_reference_id: user.id,
+      success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl ?? `${process.env.CLIENT_URL}/register`,
+    };
+
+    if (user.stripeCustomerId) {
+      sessionConfig.customer = user.stripeCustomerId;
+    } else {
+      sessionConfig.customer_creation = 'always';
+      sessionConfig.customer_email = user.email;
+    }
+
+    return getStripe().checkout.sessions.create(sessionConfig);
+  }
+
   async register(userData) {
     const {
       email, password, firstName, lastName,
@@ -60,33 +92,46 @@ class AuthService {
     });
 
     // 4. Create a Stripe Checkout Session
-    const session = await getStripe().checkout.sessions.create({
-      payment_method_types: ['card'],
-      customer_creation: 'always', // Forces Stripe to create a customer ID
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: 'Raven Membership Registration',
-              description: 'One-time registration fee for the Raven platform.',
-            },
-            unit_amount: 19900, // $199.00 in cents
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      client_reference_id: newUser.id,
-      customer_email: newUser.email,
-      success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/register`,
-    });
+    const session = await this.createRegistrationCheckoutSession(newUser);
 
     return {
       user: { id: newUser.id, email: newUser.email },
       checkoutUrl: session.url,
       sessionId: session.id // Returns the session ID to the frontend
+    };
+  }
+
+  async resumePayment(email, password) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new Error('Incorrect password');
+    }
+
+    if (user.role !== 'MEMBER') {
+      throw new Error('Payment resume is only available for member accounts');
+    }
+
+    if (user.status === 'ACTIVE') {
+      throw new Error('Payment already completed');
+    }
+
+    if (user.status !== 'PENDING_PAYMENT') {
+      throw new Error(getInactiveAccountErrorCode(user.role));
+    }
+
+    const session = await this.createRegistrationCheckoutSession(user, {
+      cancelUrl: `${process.env.CLIENT_URL}/login`,
+    });
+
+    return {
+      user: { id: user.id, email: user.email },
+      checkoutUrl: session.url,
+      sessionId: session.id,
     };
   }
 

@@ -49,6 +49,9 @@
 				{
 					"name": "2. Verify Stripe Payment",
 					"request": {
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "POST",
 						"header": [
 							{
@@ -70,7 +73,8 @@
 								"auth",
 								"verify-payment"
 							]
-						}
+						},
+						"description": "Public. Call after Stripe checkout success (from Register or Resume Payment). Pass session_id from the payment-success redirect. Activates the account (PENDING_PAYMENT → ACTIVE)."
 					}
 				},
 				{
@@ -118,7 +122,38 @@
 					}
 				},
 				{
-					"name": "4. Refresh Token",
+					"name": "4. Resume Payment",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"member@raven.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/resume-payment",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"resume-payment"
+							]
+						},
+						"description": "For users who registered but did not complete Stripe payment (PENDING_PAYMENT). Verifies email/password and returns checkoutUrl to redirect to Stripe, same as registration. After payment, call Verify Stripe Payment."
+					}
+				},
+				{
+					"name": "5. Refresh Token",
 					"event": [
 						{
 							"listen": "test",
@@ -218,7 +253,7 @@
 				}
 			]
 		},
-		{
+		{	
 			"name": "Admin",
 			"item": [
 				{

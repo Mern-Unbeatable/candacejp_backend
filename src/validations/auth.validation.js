@@ -25,6 +25,16 @@ class AuthValidation {
     email: Joi.string().email().required(),
     password: Joi.string().required()
   });
+
+  resumePayment = Joi.object({
+    email: Joi.string().email().required().messages({
+      'string.email': 'Please provide a valid email address.',
+      'any.required': 'Email is required.',
+    }),
+    password: Joi.string().required().messages({
+      'any.required': 'Password is required.',
+    }),
+  });
 }
 
 export default new AuthValidation();

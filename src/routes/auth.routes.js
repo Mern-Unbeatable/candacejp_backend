@@ -8,6 +8,7 @@ const router = express.Router();
 router.post('/register', validate(authValidation.register), authController.register);
 router.post('/verify-payment', authController.verifyPayment);
 router.post('/login', validate(authValidation.login), authController.login);
-router.post('/refresh', authController.refreshToken); // <-- New route
+router.post('/resume-payment', validate(authValidation.resumePayment), authController.resumePayment);
+router.post('/refresh', authController.refreshToken);
 
 export default router;

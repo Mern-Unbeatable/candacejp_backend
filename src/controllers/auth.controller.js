@@ -59,7 +59,7 @@ class AuthController {
           res,
           'Registration fee pending. Please complete your payment.',
           402,
-          { requiresRegistration: true }
+          { requiresRegistration: true, requiresPayment: true }
         );
       }
 
@@ -72,6 +72,40 @@ class AuthController {
       }
 
       return sendError(res, 'An unexpected error occurred during login.', 500);
+    }
+  };
+
+  resumePayment = async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+      const result = await authService.resumePayment(email, password);
+      logger.info(`Payment checkout resumed for: ${email}`);
+      return sendSuccess(res, 'Please complete your registration payment.', result);
+    } catch (error) {
+      logger.error(`Resume payment failed for ${email} - Error: ${error.message}`);
+
+      if (error.message === 'User not found') {
+        return sendError(res, 'No account found with this email address.', 404);
+      }
+
+      if (error.message === 'Incorrect password') {
+        return sendError(res, 'The password you entered is incorrect.', 401);
+      }
+
+      if (error.message === 'Payment already completed') {
+        return sendError(res, 'Your registration payment is already complete. Please log in.', 409);
+      }
+
+      if (error.message === 'Payment resume is only available for member accounts') {
+        return sendError(res, error.message, 403);
+      }
+
+      if (error.message === 'MemberAccountInactive') {
+        return sendError(res, getInactiveAccountMessage('MEMBER'), 403);
+      }
+
+      return sendError(res, 'Unable to start payment checkout.', 400);
     }
   };
 
