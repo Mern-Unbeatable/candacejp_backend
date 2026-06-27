@@ -1,6 +1,11 @@
 import prisma from '../lib/prisma.js';
 import { buildPagination } from '../utils/pagination.js';
-import { canUsersMessage, formatMessage } from '../utils/message.js';
+import {
+  buildMemberSearchWhere,
+  canUsersMessage,
+  formatMessage,
+  matchesPartnerSearch,
+} from '../utils/message.js';
 import { isUserOnline } from '../socket/presence.store.js';
 
 const userSelect = {
@@ -267,14 +272,81 @@ class MessageService {
     };
   }
 
-  async getConversations(userId) {
+  formatPartner(user) {
+    return {
+      ...user,
+      fullName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+      isOnline: isUserOnline(user.id),
+    };
+  }
+
+  async getConversations(userId, search = '') {
     const viewer = await this.getActiveUser(userId);
+    const term = search.trim();
 
     if (viewer.role === 'MEMBER') {
-      return this.getMemberConversations(userId);
+      const result = await this.getMemberConversations(userId);
+
+      if (term) {
+        result.conversations = result.conversations.filter((conversation) =>
+          matchesPartnerSearch(conversation.partner, term)
+        );
+      }
+
+      return {
+        ...result,
+        searchMode: 'existing_only',
+      };
     }
 
-    return this.getConciergeConversations();
+    if (term) {
+      return this.searchConciergeMembers(term);
+    }
+
+    const result = await this.getConciergeConversations();
+    return {
+      ...result,
+      searchMode: 'existing_only',
+    };
+  }
+
+  async searchConciergeMembers(search) {
+    const members = await prisma.user.findMany({
+      where: {
+        role: 'MEMBER',
+        status: 'ACTIVE',
+        ...buildMemberSearchWhere(search),
+      },
+      select: userSelect,
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      take: 50,
+    });
+
+    const { conversations: existingConversations } = await this.getConciergeConversations();
+    const existingByMemberId = new Map(
+      existingConversations.map((conversation) => [conversation.partner.id, conversation])
+    );
+
+    const conversations = members.map((member) => {
+      const existing = existingByMemberId.get(member.id);
+
+      if (existing) {
+        return existing;
+      }
+
+      return {
+        partner: this.formatPartner(member),
+        lastMessage: null,
+        unreadCount: 0,
+        sharedInbox: true,
+        hasConversation: false,
+      };
+    });
+
+    return {
+      conversations,
+      searchMode: 'all_members',
+    };
   }
 
   async getMemberConversations(userId) {
@@ -307,14 +379,11 @@ class MessageService {
       });
 
       conversations.set(partner.id, {
-        partner: {
-          ...partner,
-          fullName: `${partner.firstName ?? ''} ${partner.lastName ?? ''}`.trim(),
-          isOnline: isUserOnline(partner.id),
-        },
+        partner: this.formatPartner(partner),
         lastMessage: formatMessage(message),
         unreadCount,
         sharedInbox: false,
+        hasConversation: true,
       });
     }
 
@@ -357,14 +426,11 @@ class MessageService {
       });
 
       conversations.set(member.id, {
-        partner: {
-          ...member,
-          fullName: `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim(),
-          isOnline: isUserOnline(member.id),
-        },
+        partner: this.formatPartner(member),
         lastMessage: formatMessage(message),
         unreadCount,
         sharedInbox: true,
+        hasConversation: true,
       });
     }
 

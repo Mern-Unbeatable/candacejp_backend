@@ -6,7 +6,8 @@ import { sendError, sendSuccess } from '../utils/apiResponse.js';
 class MessageController {
   getConversations = async (req, res) => {
     try {
-      const data = await messageService.getConversations(req.user.id);
+      const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+      const data = await messageService.getConversations(req.user.id, search);
       return sendSuccess(res, 'Conversations retrieved successfully.', data);
     } catch (error) {
       return sendError(res, error.message, 400);

@@ -26,7 +26,8 @@
       font-family: Inter, Segoe UI, system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
     }
 
     .layout {
@@ -34,7 +35,9 @@
       grid-template-columns: 320px 1fr 300px;
       gap: 16px;
       padding: 16px;
-      min-height: 100vh;
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
     }
 
     .panel {
@@ -46,6 +49,20 @@
       flex-direction: column;
       gap: 12px;
       min-height: 0;
+      max-height: 100%;
+      overflow: hidden;
+    }
+
+    .sidebar-panel {
+      min-width: 0;
+    }
+
+    .chat-panel {
+      min-width: 0;
+    }
+
+    .log-panel {
+      min-width: 0;
     }
 
     h1 {
@@ -152,6 +169,7 @@
       gap: 12px;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
     .messages {
@@ -161,7 +179,7 @@
       flex-direction: column;
       gap: 10px;
       padding: 12px 0;
-      min-height: 360px;
+      min-height: 0;
     }
 
     .bubble {
@@ -221,6 +239,7 @@
       color: #93c5fd;
       font-size: 0.85rem;
       font-weight: 600;
+      flex-shrink: 0;
     }
 
     .typing-banner.visible {
@@ -255,11 +274,21 @@
       gap: 8px;
       padding-top: 12px;
       border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      margin-top: auto;
+    }
+
+    .log-wrap {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      gap: 8px;
     }
 
     .log {
       overflow: auto;
       flex: 1;
+      min-height: 0;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 0.72rem;
       background: #0b1020;
@@ -267,6 +296,57 @@
       padding: 10px;
       border: 1px solid var(--border);
       white-space: pre-wrap;
+      scrollbar-width: thin;
+      scrollbar-color: #475569 #0b1020;
+    }
+
+    .log::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .log::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 999px;
+    }
+
+    .log-scroll {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .log-scroll button {
+      width: 34px;
+      min-height: 34px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      line-height: 1;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .log-panel .subtitle {
+      margin-bottom: 0;
+    }
+
+    .log-filter {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .log-filter input {
+      min-width: 0;
+    }
+
+    .log-panel .clear-log-btn {
+      flex-shrink: 0;
     }
 
     .badge {
@@ -278,6 +358,69 @@
       color: #cbd5e1;
     }
 
+    .badge.new {
+      background: #14532d;
+      color: #bbf7d0;
+    }
+
+    .search-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .search-meta {
+      font-size: 0.72rem;
+      color: var(--muted);
+      min-height: 1rem;
+      line-height: 1.35;
+    }
+
+    .search-meta.loading {
+      color: var(--blue);
+    }
+
+    .conversation-item .item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .conversation-item .item-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .conversation-item .item-name strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .conversation-item .partner-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .conversation-item .partner-dot.online {
+      background: var(--green);
+    }
+
+    .conversation-empty {
+      padding: 16px 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+    }
+
     @media (max-width: 1100px) {
       .layout { grid-template-columns: 1fr; }
     }
@@ -285,7 +428,7 @@
 </head>
 <body>
   <div class="layout">
-  <aside class="panel">
+  <aside class="panel sidebar-panel">
     <h1>Raven Chat Tester</h1>
     <p class="subtitle">Socket.io + REST messaging · API: <code id="apiHint">http://localhost:3000</code></p>
     <p class="subtitle" style="margin-top:-8px">Tip: open via <code>http://localhost:3000/test/chat</code> or Live Server (CORS enabled).</p>
@@ -321,12 +464,18 @@
       <button id="seenBtn" class="secondary" disabled>Mark seen</button>
     </div>
 
-    <button id="loadConversationsBtn" class="secondary" disabled>Load conversations (REST)</button>
+    <div class="search-wrap">
+      <label for="conversationSearch">Search conversations</label>
+      <input id="conversationSearch" placeholder="Search..." disabled />
+      <div class="search-meta" id="searchMeta"></div>
+    </div>
+
+    <button id="loadConversationsBtn" class="secondary" disabled>Refresh list</button>
 
     <div class="conversations" id="conversations"></div>
   </aside>
 
-  <main class="panel">
+  <main class="panel chat-panel">
     <div class="chat-header">
       <div>
         <strong id="chatTitle">Select a conversation</strong>
@@ -352,11 +501,23 @@
     </div>
   </main>
 
-  <aside class="panel">
+  <aside class="panel log-panel">
     <h1>Event log</h1>
-    <p class="subtitle">Socket events for debugging</p>
-    <div class="log" id="eventLog"></div>
-    <button id="clearLogBtn" class="secondary">Clear log</button>
+    <p class="subtitle">Socket events for debugging · newest at top</p>
+    <div class="log-wrap">
+      <div class="log" id="eventLog"></div>
+      <div class="log-scroll">
+        <button id="logScrollTopBtn" type="button" class="secondary" title="Jump to latest">▲</button>
+        <button id="logScrollUpBtn" type="button" class="secondary" title="Scroll up">↑</button>
+        <button id="logScrollDownBtn" type="button" class="secondary" title="Scroll down">↓</button>
+        <button id="logScrollBottomBtn" type="button" class="secondary" title="Jump to oldest">▼</button>
+      </div>
+    </div>
+    <div class="log-filter">
+      <input id="logFilterInput" type="text" placeholder="Filter log events..." />
+      <button id="logFilterClearBtn" type="button" class="secondary">Clear</button>
+    </div>
+    <button id="clearLogBtn" class="secondary clear-log-btn">Clear log</button>
   </aside>
   </div>
 
@@ -371,6 +532,11 @@
       typingActive: false,
       lastTypingEmit: 0,
       messages: new Map(),
+      searchTimeout: null,
+      searchMode: 'existing_only',
+      conversationsLoading: false,
+      logEntries: [],
+      logFilter: '',
     };
 
     const $ = (id) => document.getElementById(id);
@@ -381,9 +547,47 @@
       return base;
     }
 
+    function renderEventLog({ stickToLatest = false } = {}) {
+      const eventLog = $('eventLog');
+      const previousTop = eventLog.scrollTop;
+      const filter = state.logFilter.trim().toLowerCase();
+
+      const lines = filter
+        ? state.logEntries.filter((entry) => entry.toLowerCase().includes(filter))
+        : state.logEntries;
+
+      eventLog.textContent = lines.join('');
+
+      if (stickToLatest) {
+        eventLog.scrollTop = 0;
+      } else {
+        eventLog.scrollTop = previousTop;
+      }
+    }
+
     function log(event, payload) {
       const line = `[${new Date().toLocaleTimeString()}] ${event}${payload ? '\n' + JSON.stringify(payload, null, 2) : ''}\n\n`;
-      $('eventLog').textContent = line + $('eventLog').textContent;
+      const eventLog = $('eventLog');
+      const stickToLatest = eventLog.scrollTop <= 24;
+      state.logEntries.unshift(line);
+      renderEventLog({ stickToLatest });
+    }
+
+    function scrollEventLog(mode) {
+      const eventLog = $('eventLog');
+      const step = Math.max(120, eventLog.clientHeight * 0.75);
+
+      if (mode === 'top') {
+        eventLog.scrollTop = 0;
+        return;
+      }
+
+      if (mode === 'bottom') {
+        eventLog.scrollTop = eventLog.scrollHeight;
+        return;
+      }
+
+      eventLog.scrollTop += mode === 'down' ? step : -step;
     }
 
     function setSocketUi(connected) {
@@ -397,6 +601,37 @@
       $('sendBtn').disabled = !connected || !state.partnerId;
       $('reloadBtn').disabled = !state.accessToken || !state.partnerId;
       $('loadConversationsBtn').disabled = !state.accessToken;
+      $('conversationSearch').disabled = !state.accessToken;
+    }
+
+    function updateSearchUi() {
+      const role = state.user?.role;
+      const input = $('conversationSearch');
+
+      if (role === 'CONCIERGE') {
+        input.placeholder = 'Search all ACTIVE members by name or email';
+      } else if (role === 'MEMBER') {
+        input.placeholder = 'Search your existing conversations';
+      } else {
+        input.placeholder = 'Search...';
+      }
+    }
+
+    function setSearchMeta(text, loading = false) {
+      const meta = $('searchMeta');
+      meta.textContent = text;
+      meta.classList.toggle('loading', loading);
+    }
+
+    function scheduleConversationSearch() {
+      clearTimeout(state.searchTimeout);
+      state.searchTimeout = setTimeout(() => {
+        if (state.accessToken) {
+          loadConversations().catch((error) => {
+            setSearchMeta(error.message);
+          });
+        }
+      }, 300);
     }
 
     function matchesTypingPartner({ userId, memberId }) {
@@ -473,6 +708,7 @@
         Role: <span class="badge">${state.user.role}</span><br>
         ID: <code style="font-size:0.75rem">${state.user.id}</code>
       `;
+      updateSearchUi();
     }
 
     function tickClass(tickType) {
@@ -556,15 +792,25 @@
       localStorage.setItem('raven_chat_user', JSON.stringify(state.user));
       renderUser();
       setSocketUi(false);
+      updateSearchUi();
       log('login.success', { user: state.user });
+      loadConversations().catch((e) => alert(e.message));
     }
 
     function logout() {
       disconnectSocket();
+      clearTimeout(state.searchTimeout);
       state.accessToken = '';
       state.user = null;
+      state.searchMode = 'existing_only';
       localStorage.removeItem('raven_chat_token');
       localStorage.removeItem('raven_chat_user');
+      $('conversationSearch').value = '';
+      setSearchMeta('');
+      state.logEntries = [];
+      state.logFilter = '';
+      $('logFilterInput').value = '';
+      renderEventLog();
       renderUser();
       setSocketUi(false);
       $('conversations').innerHTML = '';
@@ -657,10 +903,12 @@
       setSocketUi(false);
     }
 
-    function joinConversation(partnerId) {
+    function joinConversation(partnerId, partnerName) {
       state.partnerId = partnerId;
       $('partnerId').value = partnerId;
-      $('chatTitle').textContent = `Chat with ${partnerId.slice(0, 8)}...`;
+      $('chatTitle').textContent = partnerName
+        ? `Chat with ${partnerName}`
+        : `Chat with ${partnerId.slice(0, 8)}...`;
       $('seenBtn').disabled = !state.socket?.connected;
       $('messageInput').disabled = !state.socket?.connected;
       $('sendBtn').disabled = !state.socket?.connected;
@@ -685,31 +933,101 @@
       });
     }
 
-    async function loadConversations() {
-      const data = await api('/api/messages/conversations');
+    function renderConversationList(conversations) {
       const list = $('conversations');
       list.innerHTML = '';
 
-      for (const item of data.conversations || []) {
+      if (!conversations.length) {
+        const empty = document.createElement('div');
+        empty.className = 'conversation-empty';
+        const search = $('conversationSearch').value.trim();
+        if (search) {
+          empty.textContent = state.user?.role === 'CONCIERGE'
+            ? 'No ACTIVE members matched your search.'
+            : 'No existing conversations matched your search.';
+        } else {
+          empty.textContent = 'No conversations yet.';
+        }
+        list.appendChild(empty);
+        return;
+      }
+
+      for (const item of conversations) {
+        const partner = item.partner || {};
+        const partnerName = partner.fullName || partner.email || partner.id;
         const btn = document.createElement('button');
         btn.className = 'conversation-item';
-        if (item.partner.id === state.partnerId) btn.classList.add('active');
+        if (partner.id === state.partnerId) btn.classList.add('active');
+
+        const badges = [
+          item.sharedInbox ? '<span class="badge">Shared</span>' : '',
+          item.hasConversation === false ? '<span class="badge new">New contact</span>' : '',
+        ].filter(Boolean).join(' ');
+
+        const preview = item.lastMessage?.content
+          || (item.hasConversation === false ? partner.email : 'No messages yet');
+
         btn.innerHTML = `
-          <strong>${item.partner.fullName || item.partner.email}</strong>
-          ${item.sharedInbox ? '<span class="badge">Shared</span>' : ''}
-          <small>${item.lastMessage?.content || 'No messages'}</small>
+          <div class="item-top">
+            <div class="item-name">
+              <span class="partner-dot ${partner.isOnline ? 'online' : ''}"></span>
+              <strong>${partnerName}</strong>
+            </div>
+            ${badges}
+          </div>
+          <small>${partner.email || ''}</small>
+          <small>${preview}</small>
           <small>Unread: ${item.unreadCount || 0}</small>
         `;
+
         btn.onclick = () => {
           [...list.children].forEach((el) => el.classList.remove('active'));
           btn.classList.add('active');
           if (!state.socket?.connected) connectSocket();
-          setTimeout(() => joinConversation(item.partner.id), 200);
+          setTimeout(() => joinConversation(partner.id, partnerName), 200);
         };
+
         list.appendChild(btn);
       }
+    }
 
-      log('rest.conversations', data);
+    async function loadConversations() {
+      if (!state.accessToken) return;
+
+      const search = $('conversationSearch').value.trim();
+      const path = search
+        ? `/api/messages/conversations?search=${encodeURIComponent(search)}`
+        : '/api/messages/conversations';
+
+      state.conversationsLoading = true;
+      setSearchMeta('Searching...', true);
+
+      try {
+        const data = await api(path);
+        const conversations = data.conversations || [];
+        state.searchMode = data.searchMode || 'existing_only';
+
+        renderConversationList(conversations);
+
+        const modeHint = state.searchMode === 'all_members'
+          ? 'Searching all ACTIVE members (account status, not socket online).'
+          : 'Showing existing conversations only.';
+
+        const countHint = `${conversations.length} result${conversations.length === 1 ? '' : 's'}`;
+        const queryHint = search ? ` for "${search}"` : '';
+        setSearchMeta(`${countHint}${queryHint}. ${modeHint}`);
+
+        log('rest.conversations', {
+          search: search || null,
+          searchMode: state.searchMode,
+          count: conversations.length,
+        });
+      } catch (error) {
+        setSearchMeta(error.message || 'Search failed');
+        throw error;
+      } finally {
+        state.conversationsLoading = false;
+      }
     }
 
     async function loadMessages() {
@@ -761,10 +1079,34 @@
       setTimeout(() => joinConversation($('partnerId').value.trim()), 200);
     };
     $('loadConversationsBtn').onclick = () => loadConversations().catch((e) => alert(e.message));
+    $('conversationSearch').addEventListener('input', scheduleConversationSearch);
+    $('conversationSearch').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        clearTimeout(state.searchTimeout);
+        loadConversations().catch((e) => alert(e.message));
+      }
+    });
     $('reloadBtn').onclick = () => loadMessages().catch((e) => alert(e.message));
     $('sendBtn').onclick = sendMessage;
     $('seenBtn').onclick = markSeen;
-    $('clearLogBtn').onclick = () => { $('eventLog').textContent = ''; };
+    $('clearLogBtn').onclick = () => {
+      state.logEntries = [];
+      renderEventLog();
+    };
+    $('logFilterInput').addEventListener('input', (event) => {
+      state.logFilter = event.target.value;
+      renderEventLog();
+    });
+    $('logFilterClearBtn').onclick = () => {
+      state.logFilter = '';
+      $('logFilterInput').value = '';
+      renderEventLog();
+    };
+    $('logScrollTopBtn').onclick = () => scrollEventLog('top');
+    $('logScrollUpBtn').onclick = () => scrollEventLog('up');
+    $('logScrollDownBtn').onclick = () => scrollEventLog('down');
+    $('logScrollBottomBtn').onclick = () => scrollEventLog('bottom');
 
     $('messageInput').addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
@@ -781,9 +1123,12 @@
 
     renderUser();
     setSocketUi(false);
+    updateSearchUi();
     if (state.accessToken) {
       $('connectBtn').disabled = false;
       $('loadConversationsBtn').disabled = false;
+      $('conversationSearch').disabled = false;
+      loadConversations().catch(() => {});
     }
   </script>
 </body>

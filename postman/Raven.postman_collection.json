@@ -860,11 +860,14 @@
 							"request": {
 								"method": "GET",
 								"url": {
-									"raw": "{{baseUrl}}/api/messages/conversations",
+									"raw": "{{baseUrl}}/api/messages/conversations?search=",
 									"host": ["{{baseUrl}}"],
-									"path": ["api", "messages", "conversations"]
+									"path": ["api", "messages", "conversations"],
+									"query": [
+										{ "key": "search", "value": "", "description": "Optional. Members: filters existing chats by partner name/email. Concierge: searches all active members." }
+									]
 								},
-								"description": "List conversations with last message, unread count, and partner online status."
+								"description": "List conversations with last message, unread count, and partner online status. Use `search` to filter: members only see existing chats; concierge can find any active member by name or email."
 							}
 						},
 						{
@@ -1273,10 +1276,14 @@
 							"request": {
 								"method": "GET",
 								"url": {
-									"raw": "{{baseUrl}}/api/messages/conversations",
+									"raw": "{{baseUrl}}/api/messages/conversations?search=",
 									"host": ["{{baseUrl}}"],
-									"path": ["api", "messages", "conversations"]
-								}
+									"path": ["api", "messages", "conversations"],
+									"query": [
+										{ "key": "search", "value": "", "description": "Optional. Members: filters existing chats. Concierge: searches all active members by name/email." }
+									]
+								},
+								"description": "List conversations. Concierge `search` returns all matching members, including those without prior messages."
 							}
 						},
 						{

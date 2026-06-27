@@ -39,6 +39,54 @@ export function getMessageTickType(status) {
   }
 }
 
+export function matchesPartnerSearch(partner, search) {
+  const term = search.trim().toLowerCase();
+  if (!term) {
+    return true;
+  }
+
+  const firstName = (partner.firstName ?? '').toLowerCase();
+  const lastName = (partner.lastName ?? '').toLowerCase();
+  const email = (partner.email ?? '').toLowerCase();
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  if (fullName.includes(term) || email.includes(term)) {
+    return true;
+  }
+
+  const words = term.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    const firstWord = words[0];
+    const remaining = words.slice(1).join(' ');
+    if (firstName.includes(firstWord) && lastName.includes(remaining)) {
+      return true;
+    }
+  }
+
+  return firstName.includes(term) || lastName.includes(term);
+}
+
+export function buildMemberSearchWhere(search) {
+  const term = search.trim();
+  const words = term.split(/\s+/).filter(Boolean);
+  const conditions = [
+    { firstName: { contains: term, mode: 'insensitive' } },
+    { lastName: { contains: term, mode: 'insensitive' } },
+    { email: { contains: term, mode: 'insensitive' } },
+  ];
+
+  if (words.length >= 2) {
+    conditions.push({
+      AND: [
+        { firstName: { contains: words[0], mode: 'insensitive' } },
+        { lastName: { contains: words.slice(1).join(' '), mode: 'insensitive' } },
+      ],
+    });
+  }
+
+  return { OR: conditions };
+}
+
 export function formatMessage(message) {
   return {
     id: message.id,
