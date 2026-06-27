@@ -58,6 +58,12 @@ enum SupportStatus {
   SOLVED
 }
 
+enum MessageStatus {
+  SENT
+  DELIVERED
+  SEEN
+}
+
 
 // --- MODELS ---
 
@@ -257,19 +263,23 @@ model CustomTravelPassenger {
 }
 
 model Message {
-  id               String   @id @default(uuid())
-  content          String   @db.Text
-  
-  sender           User     @relation("SentMessages", fields: [senderId], references: [id])
+  id               String        @id @default(uuid())
+  content          String        @db.Text
+
+  sender           User          @relation("SentMessages", fields: [senderId], references: [id])
   senderId         String
-  
-  receiver         User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  receiver         User          @relation("ReceivedMessages", fields: [receiverId], references: [id])
   receiverId       String
 
-  isRead           Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  status           MessageStatus @default(SENT)
+  isRead           Boolean       @default(false)
+  deliveredAt      DateTime?
+  seenAt           DateTime?
+  createdAt        DateTime      @default(now())
 
   @@index([senderId, receiverId])
+  @@index([receiverId, status])
   @@index([createdAt])
 }
 

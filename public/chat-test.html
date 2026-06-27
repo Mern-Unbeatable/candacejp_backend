@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raven — Live Chat Tester</title>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --panel-2: #243044;
+      --border: #2d3a4f;
+      --text: #e8edf5;
+      --muted: #8b9cb3;
+      --blue: #257afc;
+      --green: #22c55e;
+      --red: #ef4444;
+      --outgoing: #1d4ed8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr 300px;
+      gap: 16px;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin: 0 0 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    input, select, button, textarea {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 10px 12px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--blue);
+      border: none;
+      font-weight: 600;
+    }
+
+    button.secondary { background: var(--panel-2); border: 1px solid var(--border); }
+    button.danger { background: #7f1d1d; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    .dot.online { background: var(--green); }
+
+    .user-card {
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+
+    .conversations {
+      overflow: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .conversation-item {
+      text-align: left;
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .conversation-item.active {
+      border-color: var(--blue);
+      background: #1e3a5f;
+    }
+
+    .conversation-item small {
+      display: block;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .messages {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 0;
+      min-height: 360px;
+    }
+
+    .bubble {
+      max-width: 75%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .bubble.incoming {
+      align-self: flex-start;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+    }
+
+    .bubble.outgoing {
+      align-self: flex-end;
+      background: var(--outgoing);
+      border-top-right-radius: 4px;
+    }
+
+    .meta {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 4px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .bubble.outgoing .meta { justify-content: flex-end; }
+
+    .tick.single::after { content: '✓'; color: var(--muted); }
+    .tick.double_blue::after { content: '✓✓'; color: #60a5fa; }
+    .tick.double_green::after { content: '✓✓'; color: #4ade80; }
+
+    .typing {
+      min-height: 24px;
+      color: var(--blue);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .typing-banner {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0 8px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(37, 122, 252, 0.12);
+      border: 1px solid rgba(37, 122, 252, 0.35);
+      color: #93c5fd;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .typing-banner.visible {
+      display: inline-flex;
+    }
+
+    .typing-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .typing-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #60a5fa;
+      animation: typingBounce 1.2s infinite ease-in-out;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+      40% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .log {
+      overflow: auto;
+      flex: 1;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.72rem;
+      background: #0b1020;
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      white-space: pre-wrap;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: #334155;
+      color: #cbd5e1;
+    }
+
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+  <aside class="panel">
+    <h1>Raven Chat Tester</h1>
+    <p class="subtitle">Socket.io + REST messaging · API: <code id="apiHint">http://localhost:3000</code></p>
+    <p class="subtitle" style="margin-top:-8px">Tip: open via <code>http://localhost:3000/test/chat</code> or Live Server (CORS enabled).</p>
+
+    <label for="apiBase">API base URL</label>
+    <input id="apiBase" value="http://localhost:3000" />
+
+    <label for="email">Email</label>
+    <input id="email" value="concierge@raven.com" />
+
+    <label for="password">Password</label>
+    <input id="password" type="password" value="password123" />
+
+    <div class="row">
+      <button id="loginBtn">Login</button>
+      <button id="logoutBtn" class="secondary">Logout</button>
+    </div>
+
+    <div class="user-card" id="userCard">Not logged in</div>
+
+    <div class="row">
+      <button id="connectBtn" disabled>Connect socket</button>
+      <button id="disconnectBtn" class="danger" disabled>Disconnect</button>
+    </div>
+
+    <span class="status-pill"><span class="dot" id="socketDot"></span><span id="socketStatus">Socket offline</span></span>
+
+    <label for="partnerId">Partner user ID</label>
+    <input id="partnerId" placeholder="Member or Concierge UUID" />
+
+    <div class="row">
+      <button id="joinBtn" disabled>Join chat</button>
+      <button id="seenBtn" class="secondary" disabled>Mark seen</button>
+    </div>
+
+    <button id="loadConversationsBtn" class="secondary" disabled>Load conversations (REST)</button>
+
+    <div class="conversations" id="conversations"></div>
+  </aside>
+
+  <main class="panel">
+    <div class="chat-header">
+      <div>
+        <strong id="chatTitle">Select a conversation</strong>
+        <div class="typing" id="typingLine"></div>
+      </div>
+      <div>
+        <span class="status-pill"><span class="dot" id="partnerDot"></span><span id="partnerStatus">Partner offline</span></span>
+        <span class="badge" id="inboxBadge" hidden>Shared inbox</span>
+      </div>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="typing-banner" id="typingBanner">
+      <span id="typingText">Partner is typing</span>
+      <span class="typing-dots"><span></span><span></span><span></span></span>
+    </div>
+
+    <div class="composer">
+      <input id="messageInput" placeholder="Type a message..." disabled />
+      <button id="sendBtn" disabled>Send</button>
+      <button id="reloadBtn" class="secondary" disabled>Reload</button>
+    </div>
+  </main>
+
+  <aside class="panel">
+    <h1>Event log</h1>
+    <p class="subtitle">Socket events for debugging</p>
+    <div class="log" id="eventLog"></div>
+    <button id="clearLogBtn" class="secondary">Clear log</button>
+  </aside>
+  </div>
+
+  <script>
+    const state = {
+      accessToken: localStorage.getItem('raven_chat_token') || '',
+      user: JSON.parse(localStorage.getItem('raven_chat_user') || 'null'),
+      socket: null,
+      partnerId: '',
+      sharedInbox: false,
+      typingTimeout: null,
+      typingActive: false,
+      lastTypingEmit: 0,
+      messages: new Map(),
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function apiBase() {
+      const base = $('apiBase').value.replace(/\/$/, '');
+      $('apiHint').textContent = base;
+      return base;
+    }
+
+    function log(event, payload) {
+      const line = `[${new Date().toLocaleTimeString()}] ${event}${payload ? '\n' + JSON.stringify(payload, null, 2) : ''}\n\n`;
+      $('eventLog').textContent = line + $('eventLog').textContent;
+    }
+
+    function setSocketUi(connected) {
+      $('socketDot').classList.toggle('online', connected);
+      $('socketStatus').textContent = connected ? 'Socket connected' : 'Socket offline';
+      $('connectBtn').disabled = connected || !state.accessToken;
+      $('disconnectBtn').disabled = !connected;
+      $('joinBtn').disabled = !connected;
+      $('seenBtn').disabled = !connected || !state.partnerId;
+      $('messageInput').disabled = !connected || !state.partnerId;
+      $('sendBtn').disabled = !connected || !state.partnerId;
+      $('reloadBtn').disabled = !state.accessToken || !state.partnerId;
+      $('loadConversationsBtn').disabled = !state.accessToken;
+    }
+
+    function matchesTypingPartner({ userId, memberId }) {
+      if (userId === state.partnerId) {
+        return true;
+      }
+
+      if (state.sharedInbox && state.user?.role === 'CONCIERGE' && memberId === state.partnerId) {
+        return true;
+      }
+
+      return false;
+    }
+
+    function shouldShowTyping({ userId, isTyping, memberId }) {
+      if (!isTyping || !state.partnerId || userId === state.user?.id) {
+        return false;
+      }
+
+      return matchesTypingPartner({ userId, memberId });
+    }
+
+    function setTypingIndicator(isTyping, label = 'Partner is typing') {
+      const text = isTyping ? `${label}...` : '';
+      $('typingLine').textContent = text;
+      $('typingText').textContent = isTyping ? label : 'Partner is typing';
+      $('typingBanner').classList.toggle('visible', isTyping);
+    }
+
+    function emitTypingActivity(isTyping) {
+      if (!state.partnerId || !state.socket?.connected) return;
+
+      if (isTyping) {
+        const now = Date.now();
+        if (now - state.lastTypingEmit < 800) {
+          return;
+        }
+        state.lastTypingEmit = now;
+      }
+
+      state.socket.emit(isTyping ? 'typing:start' : 'typing:stop', {
+        receiverId: state.partnerId,
+      });
+    }
+
+    function scheduleTypingStop() {
+      clearTimeout(state.typingTimeout);
+      state.typingTimeout = setTimeout(() => {
+        state.typingActive = false;
+        emitTypingActivity(false);
+      }, 1500);
+    }
+
+    function handleTypingInput() {
+      if (!state.partnerId || !state.socket?.connected) return;
+
+      if (!state.typingActive) {
+        state.typingActive = true;
+        emitTypingActivity(true);
+      }
+
+      scheduleTypingStop();
+    }
+
+    function renderUser() {
+      if (!state.user) {
+        $('userCard').textContent = 'Not logged in';
+        return;
+      }
+
+      $('userCard').innerHTML = `
+        <strong>${state.user.firstName || ''} ${state.user.lastName || ''}</strong><br>
+        ${state.user.email}<br>
+        Role: <span class="badge">${state.user.role}</span><br>
+        ID: <code style="font-size:0.75rem">${state.user.id}</code>
+      `;
+    }
+
+    function tickClass(tickType) {
+      return `tick ${tickType || 'single'}`;
+    }
+
+    function renderMessages() {
+      const container = $('messages');
+      container.innerHTML = '';
+
+      const list = [...state.messages.values()].sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+      );
+
+      for (const message of list) {
+        const outgoing = message.senderId === state.user?.id;
+        const wrap = document.createElement('div');
+        wrap.className = `bubble ${outgoing ? 'outgoing' : 'incoming'}`;
+        wrap.textContent = message.content;
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const time = new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        meta.innerHTML = `<span>${time}</span>`;
+        if (outgoing) {
+          const tick = document.createElement('span');
+          tick.className = tickClass(message.tickType);
+          meta.appendChild(tick);
+        }
+        if (message.sender?.role === 'CONCIERGE' && !outgoing && state.user?.role === 'MEMBER') {
+          meta.innerHTML += `<span>• ${message.sender.firstName || 'Concierge'}</span>`;
+        }
+        if (message.sender?.role === 'CONCIERGE' && state.sharedInbox) {
+          meta.innerHTML += `<span>• ${message.sender.firstName || 'Concierge'}</span>`;
+        }
+
+        const block = document.createElement('div');
+        block.style.display = 'flex';
+        block.style.flexDirection = 'column';
+        block.style.alignItems = outgoing ? 'flex-end' : 'flex-start';
+        block.appendChild(wrap);
+        block.appendChild(meta);
+        container.appendChild(block);
+      }
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function upsertMessage(message) {
+      state.messages.set(message.id, message);
+      renderMessages();
+    }
+
+    async function api(path, options = {}) {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(state.accessToken ? { Authorization: `Bearer ${state.accessToken}` } : {}),
+        ...(options.headers || {}),
+      };
+
+      const response = await fetch(`${apiBase()}${path}`, { ...options, headers });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Request failed');
+      }
+      return data.data ?? data;
+    }
+
+    async function login() {
+      const data = await api('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: $('email').value.trim(),
+          password: $('password').value,
+        }),
+      });
+
+      state.accessToken = data.accessToken;
+      state.user = data.user;
+      localStorage.setItem('raven_chat_token', state.accessToken);
+      localStorage.setItem('raven_chat_user', JSON.stringify(state.user));
+      renderUser();
+      setSocketUi(false);
+      log('login.success', { user: state.user });
+    }
+
+    function logout() {
+      disconnectSocket();
+      state.accessToken = '';
+      state.user = null;
+      localStorage.removeItem('raven_chat_token');
+      localStorage.removeItem('raven_chat_user');
+      renderUser();
+      setSocketUi(false);
+      $('conversations').innerHTML = '';
+      state.messages.clear();
+      renderMessages();
+    }
+
+    function connectSocket() {
+      if (state.socket?.connected) return;
+
+      if (state.socket) {
+        state.socket.removeAllListeners();
+        state.socket.disconnect();
+      }
+
+      state.socket = io(apiBase(), {
+        auth: { token: state.accessToken },
+      });
+
+      state.socket.on('connect', () => {
+        setSocketUi(true);
+        log('socket.connect');
+      });
+
+      state.socket.on('disconnect', () => {
+        setSocketUi(false);
+        log('socket.disconnect');
+      });
+
+      state.socket.on('connect_error', (error) => {
+        log('socket.connect_error', { message: error.message });
+        alert(error.message);
+      });
+
+      state.socket.on('presence:update', ({ userId, isOnline }) => {
+        log('presence:update', { userId, isOnline });
+        if (userId === state.partnerId) {
+          $('partnerDot').classList.toggle('online', isOnline);
+          $('partnerStatus').textContent = isOnline ? 'Partner online' : 'Partner offline';
+        }
+      });
+
+      state.socket.on('typing:update', (payload) => {
+        const { userId, isTyping, memberId } = payload;
+        log('typing:update', payload);
+
+        if (shouldShowTyping({ userId, isTyping, memberId })) {
+          setTypingIndicator(true, 'Partner is typing');
+        } else if (!isTyping && matchesTypingPartner({ userId, memberId })) {
+          setTypingIndicator(false);
+        }
+      });
+
+      state.socket.on('message:new', ({ message }) => {
+        upsertMessage(message);
+        log('message:new', message);
+        if (message.senderId === state.partnerId) {
+          setTypingIndicator(false);
+        }
+        if (message.receiverId === state.user.id) {
+          state.socket.emit('message:delivered', { messageId: message.id });
+        }
+      });
+
+      state.socket.on('message:sent', ({ message }) => {
+        upsertMessage(message);
+        log('message:sent', message);
+      });
+
+      state.socket.on('message:status', ({ message }) => {
+        upsertMessage(message);
+        log('message:status', message);
+      });
+
+      state.socket.on('message:seen', ({ messages, viewerId }) => {
+        for (const message of messages) upsertMessage(message);
+        log('message:seen', { viewerId, count: messages.length });
+      });
+
+      state.socket.on('conversation:joined', (payload) => {
+        log('conversation:joined', payload);
+        state.sharedInbox = !!payload.sharedInbox;
+        $('inboxBadge').hidden = !state.sharedInbox;
+      });
+    }
+
+    function disconnectSocket() {
+      state.socket?.disconnect();
+      state.socket = null;
+      setSocketUi(false);
+    }
+
+    function joinConversation(partnerId) {
+      state.partnerId = partnerId;
+      $('partnerId').value = partnerId;
+      $('chatTitle').textContent = `Chat with ${partnerId.slice(0, 8)}...`;
+      $('seenBtn').disabled = !state.socket?.connected;
+      $('messageInput').disabled = !state.socket?.connected;
+      $('sendBtn').disabled = !state.socket?.connected;
+      $('reloadBtn').disabled = !state.accessToken;
+
+      state.socket.emit('presence:check', { userIds: [partnerId] }, (response) => {
+        const user = response?.data?.users?.[0];
+        if (user) {
+          $('partnerDot').classList.toggle('online', user.isOnline);
+          $('partnerStatus').textContent = user.isOnline ? 'Partner online' : 'Partner offline';
+        }
+      });
+
+      state.socket.emit('conversation:join', { partnerId }, async (response) => {
+        if (!response?.success) {
+          alert(response?.message || 'Failed to join conversation');
+          return;
+        }
+        state.sharedInbox = !!response.data?.sharedInbox;
+        $('inboxBadge').hidden = !state.sharedInbox;
+        await loadMessages();
+      });
+    }
+
+    async function loadConversations() {
+      const data = await api('/api/messages/conversations');
+      const list = $('conversations');
+      list.innerHTML = '';
+
+      for (const item of data.conversations || []) {
+        const btn = document.createElement('button');
+        btn.className = 'conversation-item';
+        if (item.partner.id === state.partnerId) btn.classList.add('active');
+        btn.innerHTML = `
+          <strong>${item.partner.fullName || item.partner.email}</strong>
+          ${item.sharedInbox ? '<span class="badge">Shared</span>' : ''}
+          <small>${item.lastMessage?.content || 'No messages'}</small>
+          <small>Unread: ${item.unreadCount || 0}</small>
+        `;
+        btn.onclick = () => {
+          [...list.children].forEach((el) => el.classList.remove('active'));
+          btn.classList.add('active');
+          if (!state.socket?.connected) connectSocket();
+          setTimeout(() => joinConversation(item.partner.id), 200);
+        };
+        list.appendChild(btn);
+      }
+
+      log('rest.conversations', data);
+    }
+
+    async function loadMessages() {
+      if (!state.partnerId) return;
+      const data = await api(`/api/messages/with/${state.partnerId}?page=1&limit=100`);
+      state.messages.clear();
+      for (const message of data.messages || []) {
+        state.messages.set(message.id, message);
+      }
+      state.sharedInbox = !!data.sharedInbox;
+      $('inboxBadge').hidden = !state.sharedInbox;
+      renderMessages();
+      log('rest.messages', { count: data.messages?.length, sharedInbox: data.sharedInbox });
+    }
+
+    function sendMessage() {
+      const content = $('messageInput').value.trim();
+      if (!content || !state.partnerId) return;
+
+      state.typingActive = false;
+      clearTimeout(state.typingTimeout);
+      emitTypingActivity(false);
+      setTypingIndicator(false);
+
+      state.socket.emit('message:send', { receiverId: state.partnerId, content }, (response) => {
+        if (!response?.success) {
+          alert(response?.message || 'Failed to send message');
+          return;
+        }
+        $('messageInput').value = '';
+        if (response.data?.message) upsertMessage(response.data.message);
+      });
+    }
+
+    function markSeen() {
+      state.socket.emit('message:seen', { partnerId: state.partnerId }, (response) => {
+        log('emit.message:seen', response);
+        loadMessages();
+      });
+    }
+
+    $('loginBtn').onclick = () => login().catch((e) => alert(e.message));
+    $('logoutBtn').onclick = logout;
+    $('connectBtn').onclick = connectSocket;
+    $('disconnectBtn').onclick = disconnectSocket;
+    $('joinBtn').onclick = () => {
+      if (!$('partnerId').value.trim()) return alert('Enter partner ID');
+      if (!state.socket?.connected) connectSocket();
+      setTimeout(() => joinConversation($('partnerId').value.trim()), 200);
+    };
+    $('loadConversationsBtn').onclick = () => loadConversations().catch((e) => alert(e.message));
+    $('reloadBtn').onclick = () => loadMessages().catch((e) => alert(e.message));
+    $('sendBtn').onclick = sendMessage;
+    $('seenBtn').onclick = markSeen;
+    $('clearLogBtn').onclick = () => { $('eventLog').textContent = ''; };
+
+    $('messageInput').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        sendMessage();
+        return;
+      }
+      handleTypingInput();
+    });
+
+    $('messageInput').addEventListener('input', () => {
+      handleTypingInput();
+    });
+
+    renderUser();
+    setSocketUi(false);
+    if (state.accessToken) {
+      $('connectBtn').disabled = false;
+      $('loadConversationsBtn').disabled = false;
+    }
+  </script>
+</body>
+</html>

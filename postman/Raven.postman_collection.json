@@ -1,7 +1,7 @@
 {
 	"info": {
 		"name": "Raven Platform APIs",
-		"description": "Collection for testing the Raven backend authentication flow with automated token handling.",
+		"description": "Collection for testing the Raven backend authentication flow with automated token handling.\n\n## Socket.io (Live Messaging)\nConnect: `io(baseUrl, { auth: { token: accessToken } })`\n\n**Client → Server:** `conversation:join`, `message:send`, `message:delivered`, `message:seen`, `typing:start`, `typing:stop`, `presence:check`\n\n**Server → Client:** `message:new`, `message:sent`, `message:status`, `message:seen`, `typing:update`, `presence:update`, `presence:online-users`\n\n**Tick types:** `single` (sent), `double_blue` (delivered), `double_green` (seen)",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
@@ -852,6 +852,57 @@
 					]
 				},
 				{
+					"name": "Messages",
+					"description": "REST helpers for chat history. Live send/receive uses Socket.io (see collection description).",
+					"item": [
+						{
+							"name": "Get Conversations",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/messages/conversations",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "messages", "conversations"]
+								},
+								"description": "List conversations with last message, unread count, and partner online status."
+							}
+						},
+						{
+							"name": "Get Messages With User",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/messages/with/{{chatPartnerId}}?page=1&limit=50",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "messages", "with", "{{chatPartnerId}}"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "50" }
+									]
+								},
+								"description": "Chat history with a member or concierge. tickType: single | double_blue | double_green."
+							}
+						},
+						{
+							"name": "Mark Conversation Seen",
+							"request": {
+								"method": "PATCH",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"partnerId\": \"{{chatPartnerId}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/messages/seen",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "messages", "seen"]
+								},
+								"description": "Marks all messages from partner as SEEN (double green tick for sender)."
+							}
+						}
+					]
+				},
+				{
 					"name": "Profile",
 					"item": [
 						{
@@ -1214,6 +1265,54 @@
 					]
 				},
 				{
+					"name": "Messages",
+					"description": "REST helpers for chat history. Live send/receive uses Socket.io.",
+					"item": [
+						{
+							"name": "Get Conversations",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/messages/conversations",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "messages", "conversations"]
+								}
+							}
+						},
+						{
+							"name": "Get Messages With User",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/messages/with/{{chatPartnerId}}?page=1&limit=50",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "messages", "with", "{{chatPartnerId}}"],
+									"query": [
+										{ "key": "page", "value": "1" },
+										{ "key": "limit", "value": "50" }
+									]
+								}
+							}
+						},
+						{
+							"name": "Mark Conversation Seen",
+							"request": {
+								"method": "PATCH",
+								"header": [{ "key": "Content-Type", "value": "application/json" }],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"partnerId\": \"{{chatPartnerId}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/messages/seen",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "messages", "seen"]
+								}
+							}
+						}
+					]
+				},
+				{
 					"name": "Profile",
 					"item": [
 						{
@@ -1305,6 +1404,11 @@
 		},
 		{
 			"key": "supportRequestId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "chatPartnerId",
 			"value": "",
 			"type": "string"
 		}

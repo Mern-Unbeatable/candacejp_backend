@@ -1,4 +1,7 @@
 import express from "express";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import morgan from "morgan";
 import logger from "./utils/logger.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -8,7 +11,14 @@ import staffRoutes from "./routes/staff.routes.js";
 import memberRoutes from "./routes/member.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import supportRoutes from "./routes/support.routes.js";
+import messageRoutes from "./routes/message.routes.js";
+import { corsOptions } from "./config/cors.js";
 import { sendError, sendSuccess } from "./utils/apiResponse.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicDir = path.join(__dirname, "../public");
+
 class App {
   constructor() {
     this.app = express();
@@ -18,6 +28,9 @@ class App {
   }
 
   initializeMiddlewares() {
+    this.app.use(cors(corsOptions));
+    this.app.options(/.*/, cors(corsOptions));
+
     // Middleware to parse JSON request bodies
     this.app.use(express.json());
 
@@ -42,6 +55,13 @@ class App {
         timestamp: new Date().toISOString(),
       });
     });
+
+    this.app.use("/test", express.static(publicDir));
+
+    this.app.get("/test/chat", (req, res) => {
+      res.sendFile(path.join(publicDir, "chat-test.html"));
+    });
+
     this.app.use('/api/auth', authRoutes);
     this.app.use('/api/admin', adminRoutes);
     this.app.use('/api/users', userRoutes);
@@ -49,6 +69,7 @@ class App {
     this.app.use('/api/member', memberRoutes);
     this.app.use('/api/notifications', notificationRoutes);
     this.app.use('/api/support', supportRoutes);
+    this.app.use('/api/messages', messageRoutes);
 
     // Example of where your modular routes will be injected:
     // import userRoutes from './routes/user.routes.js';
