@@ -21,6 +21,18 @@ class SupportController {
     }
   };
 
+  getById = async (req, res) => {
+    try {
+      const data = await supportService.getById(req.params.id);
+      return sendSuccess(res, 'Support request retrieved successfully.', data);
+    } catch (error) {
+      if (error.message === 'Support request not found') {
+        return sendError(res, error.message, 404);
+      }
+      return sendError(res, error.message, 400);
+    }
+  };
+
   updateStatus = async (req, res) => {
     try {
       const data = await supportService.updateStatus(req.params.id, req.body.status);

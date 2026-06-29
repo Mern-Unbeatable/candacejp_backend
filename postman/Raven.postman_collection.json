@@ -253,7 +253,7 @@
 				}
 			]
 		},
-		{	
+		{
 			"name": "Admin",
 			"item": [
 				{
@@ -472,6 +472,18 @@
 									]
 								},
 								"description": "Admin only. List support requests with status SOLVED."
+							}
+						},
+						{
+							"name": "Get Support Request by ID",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/admin/support/{{supportRequestId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "admin", "support", "{{supportRequestId}}"]
+								},
+								"description": "Admin only. Retrieve a single support request by ID."
 							}
 						},
 						{

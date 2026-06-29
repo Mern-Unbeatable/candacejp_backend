@@ -29,6 +29,7 @@ router.put('/members/:id', adminController.updateMember);
 
 // Support requests
 router.get('/support', supportController.getAll);
+router.get('/support/:id', supportController.getById);
 router.put('/support/:id', validate(supportValidation.updateStatus), supportController.updateStatus);
 router.delete('/support/:id', supportController.delete);
 

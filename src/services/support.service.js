@@ -43,6 +43,14 @@ class SupportService {
     };
   }
 
+  async getById(id) {
+    const request = await prisma.supportRequest.findUnique({ where: { id } });
+    if (!request) {
+      throw new Error('Support request not found');
+    }
+    return request;
+  }
+
   async updateStatus(id, status) {
     const request = await prisma.supportRequest.findUnique({ where: { id } });
     if (!request) {
