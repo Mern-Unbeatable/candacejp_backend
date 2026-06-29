@@ -226,8 +226,15 @@ export function formatTravelPreferenceInterest(preference) {
 
 export function buildRouteSummary(interests) {
   const counts = interests.reduce((acc, interest) => {
-    const label = interest.outboundRoute || interest.route;
-    acc[label] = (acc[label] || 0) + 1;
+    const outbound = interest.outboundRoute || interest.route;
+    if (outbound) {
+      acc[outbound] = (acc[outbound] || 0) + 1;
+    }
+
+    if (interest.returnRoute) {
+      acc[interest.returnRoute] = (acc[interest.returnRoute] || 0) + 1;
+    }
+
     return acc;
   }, {});
 
