@@ -43,7 +43,7 @@ export function normalizeTravelPreferenceStatus(status) {
 }
 
 export function normalizeTravelPreferenceType(type) {
-  if (!type) return null;
+  if (!type || type.toLowerCase() === 'all') return null;
 
   const normalized = type.toLowerCase().replace(/[\s_-]+/g, '');
   if (normalized === 'recurring' || normalized === 'recurringtravel') return true;
