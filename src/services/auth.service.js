@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import prisma from '../lib/prisma.js';
 import { getInactiveAccountErrorCode } from '../utils/accountStatus.js';
+import { withTokenExpiryMeta } from '../utils/jwt.js';
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -18,14 +19,14 @@ class AuthService {
     const payload = { id: user.id, role: user.role, status: user.status };
 
     const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
-      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m'
+      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
     });
 
     const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
     });
 
-    return { accessToken, refreshToken };
+    return withTokenExpiryMeta(accessToken, refreshToken);
   }
 
   async createRegistrationCheckoutSession(user, { cancelUrl } = {}) {
