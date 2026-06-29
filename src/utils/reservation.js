@@ -19,6 +19,13 @@ export function getAvailabilityLabel(availableSeat, totalSeat) {
   return 'Available';
 }
 
+function getPassengerInitials(firstName, lastName) {
+  const first = firstName?.trim()?.[0] ?? '';
+  const last = lastName?.trim()?.[0] ?? '';
+  const initials = `${first}${last}`.toUpperCase();
+  return initials || '??';
+}
+
 export function formatOpportunityForMember(opportunity, bookedSeats, memberReservation = null) {
   const availableSeat = Math.max(opportunity.totalCapacity - bookedSeats, 0);
 
@@ -45,6 +52,43 @@ export function formatOpportunityForMember(opportunity, bookedSeats, memberReser
     hasReservation: Boolean(memberReservation),
     reservationId: memberReservation?.id ?? null,
     reservationStatus: memberReservation?.status ?? null,
+  };
+}
+
+export function formatOpportunityDetailsForStaff(opportunity, bookedSeats, reservations = []) {
+  const availableSeat = Math.max(opportunity.totalCapacity - bookedSeats, 0);
+  const travelers = [];
+  const seenPassengerIds = new Set();
+
+  reservations.forEach((reservation) => {
+    reservation.passengers.forEach(({ passenger }) => {
+      if (!passenger || seenPassengerIds.has(passenger.id)) return;
+
+      seenPassengerIds.add(passenger.id);
+      travelers.push({
+        id: passenger.id,
+        reservationId: reservation.id,
+        reservationStatus: reservation.status,
+        firstName: passenger.firstName,
+        lastName: passenger.lastName,
+        fullName: `${passenger.firstName} ${passenger.lastName}`.trim(),
+        initials: getPassengerInitials(passenger.firstName, passenger.lastName),
+        email: passenger.email,
+        phone: passenger.phone,
+        address: passenger.address,
+        memberId: reservation.member?.id ?? null,
+        memberName: reservation.member
+          ? `${reservation.member.firstName} ${reservation.member.lastName}`.trim()
+          : null,
+      });
+    });
+  });
+
+  return {
+    ...opportunity,
+    totalBooked: bookedSeats,
+    availableSeat,
+    travelers,
   };
 }
 

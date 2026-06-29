@@ -1,6 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { buildPagination } from '../utils/pagination.js';
-import { getActivePassengerCount, formatReservationForMember } from '../utils/reservation.js';
+import { getActivePassengerCount, formatReservationForMember, formatOpportunityDetailsForStaff } from '../utils/reservation.js';
 import {
     buildRouteSummary,
     formatCustomTravelInterest,
@@ -182,7 +182,40 @@ class StaffService {
     }
 
     async getOpportunityDetails(id) {
-        return await prisma.opportunity.findUnique({ where: { id } });
+        const opportunity = await prisma.opportunity.findUnique({ where: { id } });
+
+        if (!opportunity) {
+            return null;
+        }
+
+        const [bookedSeats, reservations] = await Promise.all([
+            getActivePassengerCount(prisma, id),
+            prisma.reservation.findMany({
+                where: {
+                    opportunityId: id,
+                    status: { in: ['PENDING', 'CONFIRMED'] },
+                },
+                include: {
+                    member: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                            phone: true,
+                        },
+                    },
+                    passengers: {
+                        include: {
+                            passenger: true,
+                        },
+                    },
+                },
+                orderBy: { createdAt: 'asc' },
+            }),
+        ]);
+
+        return formatOpportunityDetailsForStaff(opportunity, bookedSeats, reservations);
     }
 
     async editDraftOpportunity(id, data) {
