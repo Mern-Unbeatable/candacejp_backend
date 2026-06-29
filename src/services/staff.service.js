@@ -90,9 +90,10 @@ function buildTravelPreferenceWhere({ type, direction, status }) {
 
 function buildOpportunityWhere({ direction, status }) {
     const where = {};
+    const normalizedDirection = normalizeInterestDirection(direction);
 
-    if (direction) {
-        where.direction = direction;
+    if (normalizedDirection) {
+        where.direction = normalizedDirection;
     }
 
     if (status && status.toLowerCase() !== 'all') {
