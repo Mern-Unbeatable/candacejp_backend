@@ -13,6 +13,12 @@ function getStripe() {
   return new Stripe(key);
 }
 
+function sanitizeUser(user) {
+  if (!user) return user
+  const { password, stripeCustomerId, ...safeUser } = user
+  return safeUser
+}
+
 class AuthService {
   // Helper method to generate both access and refresh tokens
   generateTokens(user) {
@@ -151,10 +157,10 @@ class AuthService {
         },
       });
 
-      return { success: true, user: updatedUser };
+      return { success: true, user: sanitizeUser(updatedUser) };
     }
 
-    throw new Error("Payment not completed");
+    throw new Error('Payment not completed');
   }
 
   async login(email, password) {
@@ -178,13 +184,10 @@ class AuthService {
     }
 
     const tokens = this.generateTokens(user);
-    
-    // SECURELY remove the password AND stripeCustomerId from the user object
-    const { password: _, stripeCustomerId, ...safeUser } = user;
-    
+
     return {
       ...tokens,
-      user: safeUser
+      user: sanitizeUser(user),
     };
   }
 
