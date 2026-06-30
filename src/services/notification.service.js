@@ -216,7 +216,7 @@ class NotificationService {
 
     const where = { memberId };
 
-    const [notifications, total] = await Promise.all([
+    const [notifications, total, unreadCount] = await Promise.all([
       prisma.notification.findMany({
         where,
         skip,
@@ -224,10 +224,14 @@ class NotificationService {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.notification.count({ where }),
+      prisma.notification.count({
+        where: { memberId, isRead: false },
+      }),
     ]);
 
     return {
       notifications: notifications.map(formatNotification),
+      unreadCount,
       pagination: buildPagination(currentPage, perPage, total),
     };
   }
