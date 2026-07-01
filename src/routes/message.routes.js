@@ -14,5 +14,7 @@ router.use(
 router.get('/conversations', messageController.getConversations);
 router.get('/with/:userId', messageController.getMessagesWithUser);
 router.patch('/seen', validate(messageValidation.markSeen), messageController.markMessagesSeen);
+router.patch('/:messageId', validate(messageValidation.updateMessage), messageController.updateMessage);
+router.delete('/:messageId', messageController.deleteMessage);
 
 export default router;

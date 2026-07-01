@@ -276,7 +276,11 @@ model Message {
   isRead           Boolean       @default(false)
   deliveredAt      DateTime?
   seenAt           DateTime?
+  editedAt         DateTime?
+  deletedAt        DateTime?
+  isDeleted        Boolean       @default(false)
   createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@index([senderId, receiverId])
   @@index([receiverId, status])

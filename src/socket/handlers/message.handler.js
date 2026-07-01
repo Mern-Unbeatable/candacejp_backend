@@ -4,6 +4,7 @@ import {
   getMemberThreadRoomId,
 } from '../../utils/message.js';
 import messageService from '../../services/message.service.js';
+import { broadcastMessageEvent } from '../message.broadcast.js';
 import {
   addUserSocket,
   isUserOnline,
@@ -52,16 +53,6 @@ async function markDeliveredForMessage(io, socket, message) {
       emitToUser(io, message.senderId, 'message:status', { message: delivered });
       emitToMemberThread(io, message.senderId, 'message:status', { message: delivered });
     }
-  }
-}
-
-function broadcastMessageEvent(io, message, event) {
-  const memberId = getMemberIdFromMessage(message);
-  emitToUser(io, message.senderId, event, { message });
-  emitToUser(io, message.receiverId, event, { message });
-
-  if (memberId) {
-    emitToMemberThread(io, memberId, event, { message });
   }
 }
 
@@ -114,6 +105,36 @@ export function registerMessageHandlers(io, socket) {
       }
 
       socket.emit('message:sent', { message });
+    } catch (error) {
+      if (typeof callback === 'function') {
+        callback({ success: false, message: error.message });
+      }
+    }
+  });
+
+  socket.on('message:edit', async ({ messageId, content }, callback) => {
+    try {
+      const message = await messageService.updateMessage(messageId, userId, content);
+      broadcastMessageEvent(io, message, 'message:updated');
+
+      if (typeof callback === 'function') {
+        callback({ success: true, data: { message } });
+      }
+    } catch (error) {
+      if (typeof callback === 'function') {
+        callback({ success: false, message: error.message });
+      }
+    }
+  });
+
+  socket.on('message:delete', async ({ messageId }, callback) => {
+    try {
+      const message = await messageService.deleteMessage(messageId, userId);
+      broadcastMessageEvent(io, message, 'message:deleted');
+
+      if (typeof callback === 'function') {
+        callback({ success: true, data: { message } });
+      }
     } catch (error) {
       if (typeof callback === 'function') {
         callback({ success: false, message: error.message });

@@ -90,15 +90,19 @@ export function buildMemberSearchWhere(search) {
 export function formatMessage(message) {
   return {
     id: message.id,
-    content: message.content,
+    content: message.isDeleted ? null : message.content,
     senderId: message.senderId,
     receiverId: message.receiverId,
     status: message.status,
     tickType: getMessageTickType(message.status),
     isRead: message.isRead,
+    isDeleted: message.isDeleted ?? false,
     deliveredAt: message.deliveredAt,
     seenAt: message.seenAt,
+    editedAt: message.editedAt ?? null,
+    deletedAt: message.deletedAt ?? null,
     createdAt: message.createdAt,
+    updatedAt: message.updatedAt ?? message.createdAt,
     sender: message.sender
       ? {
           id: message.sender.id,

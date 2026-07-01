@@ -112,6 +112,77 @@ class MessageService {
     return formatMessage(message);
   }
 
+  getConversationPartnerId(message, actorId) {
+    return message.senderId === actorId ? message.receiverId : message.senderId;
+  }
+
+  async getOwnedMessage(messageId, actorId) {
+    await this.getActiveUser(actorId);
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+      include: {
+        sender: { select: userSelect },
+        receiver: { select: userSelect },
+      },
+    });
+
+    if (!message || message.isDeleted) {
+      throw new Error('Message not found');
+    }
+
+    if (message.senderId !== actorId) {
+      throw new Error('You can only edit or delete your own messages');
+    }
+
+    const partnerId = this.getConversationPartnerId(message, actorId);
+    await this.validateConversationAccess(actorId, partnerId);
+
+    return message;
+  }
+
+  async updateMessage(messageId, actorId, content) {
+    await this.getOwnedMessage(messageId, actorId);
+
+    const trimmedContent = content.trim();
+    if (!trimmedContent) {
+      throw new Error('Message content is required');
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        content: trimmedContent,
+        editedAt: new Date(),
+      },
+      include: {
+        sender: { select: userSelect },
+        receiver: { select: userSelect },
+      },
+    });
+
+    return formatMessage(updated);
+  }
+
+  async deleteMessage(messageId, actorId) {
+    await this.getOwnedMessage(messageId, actorId);
+
+    const deleted = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        content: '',
+      },
+      include: {
+        sender: { select: userSelect },
+        receiver: { select: userSelect },
+      },
+    });
+
+    return formatMessage(deleted);
+  }
+
   async markDelivered(messageId, receiverId) {
     const viewer = await this.getActiveUser(receiverId);
     const conciergeIds = viewer.role === 'CONCIERGE' ? await this.getActiveConciergeIds() : null;

@@ -1,5 +1,6 @@
 import messageService from '../services/message.service.js';
 import { getIO } from '../socket/index.js';
+import { broadcastMessageEvent } from '../socket/message.broadcast.js';
 import { getMemberIdFromMessage, getMemberThreadRoomId } from '../utils/message.js';
 import { sendError, sendSuccess } from '../utils/apiResponse.js';
 
@@ -61,6 +62,42 @@ class MessageController {
       return sendSuccess(res, 'Messages marked as seen.', { messages });
     } catch (error) {
       return sendError(res, error.message, 400);
+    }
+  };
+
+  updateMessage = async (req, res) => {
+    try {
+      const message = await messageService.updateMessage(
+        req.params.messageId,
+        req.user.id,
+        req.body.content
+      );
+
+      const io = getIO();
+      if (io) {
+        broadcastMessageEvent(io, message, 'message:updated');
+      }
+
+      return sendSuccess(res, 'Message updated successfully.', { message });
+    } catch (error) {
+      const status = error.message === 'Message not found' ? 404 : 400;
+      return sendError(res, error.message, status);
+    }
+  };
+
+  deleteMessage = async (req, res) => {
+    try {
+      const message = await messageService.deleteMessage(req.params.messageId, req.user.id);
+
+      const io = getIO();
+      if (io) {
+        broadcastMessageEvent(io, message, 'message:deleted');
+      }
+
+      return sendSuccess(res, 'Message deleted successfully.', { message });
+    } catch (error) {
+      const status = error.message === 'Message not found' ? 404 : 400;
+      return sendError(res, error.message, status);
     }
   };
 }
