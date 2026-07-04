@@ -13,7 +13,10 @@ class AuthValidation {
     }),
     firstName: Joi.string().required(),
     lastName: Joi.string().required(),
-    phone: Joi.string().required(),
+    phone: Joi.string().trim().pattern(/^\d{10,15}$/).required().messages({
+      'string.pattern.base': 'Please provide a valid phone number (10-15 digits).',
+      'any.required': 'Phone number is required.',
+    }),
     address: Joi.string().required(),
     city: Joi.string().required(),
     state: Joi.string().required(),
