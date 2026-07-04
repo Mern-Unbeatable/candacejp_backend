@@ -128,6 +128,7 @@ export function formatStaffTravelPreferenceListItem(preference) {
     dayOfWeek: preference.dayOfWeek,
     preferredDate: preference.preferredDate,
     memberId: preference.memberId,
+    memberName: preference.member ? formatMemberName(preference.member) : null,
     createdAt: preference.createdAt,
   };
 }

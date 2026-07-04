@@ -654,6 +654,15 @@ class StaffService {
                 skip,
                 take: perPage,
                 orderBy: { createdAt: 'desc' },
+                include: {
+                    member: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
             }),
             prisma.travelPreference.count({ where }),
         ]);
