@@ -97,12 +97,29 @@ model User {
   // For Concierge/Admin tracking
   opportunitiesCreated Opportunity[]
 
+  passwordResetOtps  PasswordResetOtp[]
+
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
   // Composite indexes for fast directory and authentication lookups
   @@index([email])
   @@index([role, status])
+}
+
+model PasswordResetOtp {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  otpHash             String
+  expiresAt           DateTime
+  verifiedAt          DateTime?
+  resetTokenHash      String?
+  resetTokenExpiresAt DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@index([userId])
+  @@index([resetTokenHash])
 }
 model Opportunity {
   id               String            @id @default(uuid())
