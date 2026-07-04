@@ -15,8 +15,18 @@ class StaffController {
 
     getAll = async (req, res) => {
         try {
-            const { page = 1, limit = 10, direction = 'all', status = 'all' } = req.query;
-            const data = await staffService.getAllOpportunities(page, limit, { direction, status });
+            const {
+                page = 1,
+                limit = 10,
+                direction = 'all',
+                status = 'all',
+                date = '',
+            } = req.query;
+            const data = await staffService.getAllOpportunities(page, limit, {
+                direction,
+                status,
+                date,
+            });
             return sendSuccess(res, 'Opportunities retrieved successfully.', data);
         } catch (e) { return sendError(res, e.message, 400); }
     };

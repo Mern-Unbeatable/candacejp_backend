@@ -94,7 +94,7 @@ function buildTravelPreferenceWhere({ type, direction, status, search }) {
     return where;
 }
 
-function buildOpportunityWhere({ direction, status }) {
+function buildOpportunityWhere({ direction, status, date }) {
     const where = {};
     const normalizedDirection = normalizeInterestDirection(direction);
 
@@ -108,6 +108,16 @@ function buildOpportunityWhere({ direction, status }) {
             throw new Error('Invalid status filter. Use all, DRAFT, OPEN_FOR_RESERVATION, CONFIRMED, or COMPLETED.');
         }
         where.status = normalizedStatus;
+    }
+
+    const dateValue = date?.trim();
+    if (dateValue) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+            throw new Error('Invalid date filter. Use YYYY-MM-DD.');
+        }
+
+        const { start, end } = getDayBounds(dateValue);
+        where.departureDate = { gte: start, lt: end };
     }
 
     return where;
