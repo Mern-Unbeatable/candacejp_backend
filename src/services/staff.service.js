@@ -50,7 +50,7 @@ function normalizeInterestDirection(direction) {
     throw new Error('Invalid direction filter. Use all, NYC_TAMPA, or TAMPA_NYC.');
 }
 
-function buildMemberInterestWhere({ direction, status }) {
+function buildMemberInterestWhere({ direction, status, search, date }) {
     const where = {};
     const normalizedDirection = normalizeInterestDirection(direction);
 
@@ -64,6 +64,21 @@ function buildMemberInterestWhere({ direction, status }) {
             throw new Error('Invalid status filter. Use all, INTERESTED, or CONFIRMED.');
         }
         where.status = normalizedStatus;
+    }
+
+    const term = search?.trim();
+    if (term) {
+        where.member = buildMemberSearchWhere(term);
+    }
+
+    const dateValue = date?.trim();
+    if (dateValue) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+            throw new Error('Invalid date filter. Use YYYY-MM-DD.');
+        }
+
+        const { start, end } = getDayBounds(dateValue);
+        where.departureDate = { gte: start, lt: end };
     }
 
     return where;
