@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { buildPagination } from '../utils/pagination.js';
+import { buildMemberSearchWhere } from '../utils/message.js';
 import { getActivePassengerCount, formatReservationForMember, formatOpportunityDetailsForStaff } from '../utils/reservation.js';
 import {
     buildRouteSummary,
@@ -68,7 +69,7 @@ function buildMemberInterestWhere({ direction, status }) {
     return where;
 }
 
-function buildTravelPreferenceWhere({ type, direction, status }) {
+function buildTravelPreferenceWhere({ type, direction, status, search }) {
     const where = {};
     const isRecurring = normalizeTravelPreferenceType(type);
 
@@ -83,6 +84,11 @@ function buildTravelPreferenceWhere({ type, direction, status }) {
 
     if (status && status.toLowerCase() !== 'all') {
         where.status = normalizeTravelPreferenceStatus(status);
+    }
+
+    const term = search?.trim();
+    if (term) {
+        where.member = buildMemberSearchWhere(term);
     }
 
     return where;
@@ -660,6 +666,7 @@ class StaffService {
                             id: true,
                             firstName: true,
                             lastName: true,
+                            email: true,
                         },
                     },
                 },

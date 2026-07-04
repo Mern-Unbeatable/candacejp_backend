@@ -126,8 +126,14 @@ class StaffController {
                 type,
                 direction = 'all',
                 status = 'all',
+                search = '',
             } = req.query;
-            const data = await staffService.getTravelPreferences(page, limit, { type, direction, status });
+            const data = await staffService.getTravelPreferences(page, limit, {
+                type,
+                direction,
+                status,
+                search,
+            });
             return sendSuccess(res, 'Travel preferences retrieved successfully.', data);
         } catch (e) {
             return sendError(res, e.message, 400);

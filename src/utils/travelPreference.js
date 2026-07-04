@@ -129,6 +129,7 @@ export function formatStaffTravelPreferenceListItem(preference) {
     preferredDate: preference.preferredDate,
     memberId: preference.memberId,
     memberName: preference.member ? formatMemberName(preference.member) : null,
+    memberEmail: preference.member?.email ?? null,
     createdAt: preference.createdAt,
   };
 }
