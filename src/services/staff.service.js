@@ -17,7 +17,7 @@ import {
     getRouteLabel,
     toDateKey,
 } from '../utils/memberInterest.js';
-import { formatDateLabel, getUtcWeekdayIndex, WEEK_DAYS_MONDAY_FIRST } from '../utils/dateOnly.js';
+import { formatDateLabel, getUtcWeekdayIndex, parseDateOnly, WEEK_DAYS_MONDAY_FIRST } from '../utils/dateOnly.js';
 import { countScheduledFlights } from '../utils/dashboardMetrics.js';
 import notificationService from './notification.service.js';
 import {
@@ -135,8 +135,9 @@ class StaffService {
             origin: data.origin,
             destination: data.destination,
             tripType: data.tripType,
-            departureDate: new Date(data.departureDate),
-            returnDate: data.returnDate ? new Date(data.returnDate) : null,
+            departureDate: parseDateOnly(data.departureDate),
+            preferredTime: data.preferredTime,
+            returnDate: data.returnDate ? parseDateOnly(data.returnDate) : null,
             estimatedPrice: data.estimatedPrice,
             aircraftType: data.aircraftType || null,
             totalCapacity: data.totalCapacity,
@@ -230,7 +231,10 @@ class StaffService {
             ...(data.origin !== undefined && { origin: data.origin }),
             ...(data.destination !== undefined && { destination: data.destination }),
             ...(data.tripType !== undefined && { tripType: data.tripType }),
-            ...(data.departureDate !== undefined && { departureDate: new Date(data.departureDate) }),
+            ...(data.departureDate !== undefined && {
+                departureDate: parseDateOnly(data.departureDate),
+            }),
+            ...(data.preferredTime !== undefined && { preferredTime: data.preferredTime }),
             ...(data.returnDate !== undefined && {
                 returnDate: data.returnDate ? new Date(data.returnDate) : null,
             }),

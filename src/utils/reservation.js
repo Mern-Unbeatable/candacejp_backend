@@ -39,6 +39,7 @@ export function formatOpportunityForMember(opportunity, bookedSeats, memberReser
     aircraftType: opportunity.aircraftType,
     tripType: opportunity.tripType,
     departureDate: opportunity.departureDate,
+    preferredTime: opportunity.preferredTime,
     returnDate: opportunity.returnDate,
     estimatedPrice: opportunity.estimatedPrice,
     costFormatted: opportunity.estimatedPrice,
