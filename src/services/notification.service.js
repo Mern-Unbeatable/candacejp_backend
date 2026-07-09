@@ -137,7 +137,10 @@ class NotificationService {
 
   buildOpportunityOpenPayload(opportunity) {
     const route = formatRoute(opportunity.origin, opportunity.destination);
-    const date = formatDisplayDate(opportunity.departureDate);
+    const date = [
+      formatDisplayDate(opportunity.departureDate),
+      opportunity.preferredTime,
+    ].filter(Boolean).join(', ');
 
     return {
       title: 'New Travel Opportunity',
@@ -172,7 +175,10 @@ class NotificationService {
 
   buildOpportunityConfirmedPayload(opportunity) {
     const route = formatRoute(opportunity.origin, opportunity.destination);
-    const date = formatDisplayDate(opportunity.departureDate);
+    const date = [
+      formatDisplayDate(opportunity.departureDate),
+      opportunity.preferredTime,
+    ].filter(Boolean).join(', ');
 
     return {
       title: 'Travel Opportunity Confirmed',
