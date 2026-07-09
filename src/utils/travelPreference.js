@@ -1,4 +1,26 @@
 import { DAY_OF_WEEK_OPTIONS, toDateKey } from './dateOnly.js';
+
+export function getTravelPreferenceUniqueKey(preference) {
+  if (preference.isRecurring) {
+    return `${preference.direction}|${preference.dayOfWeek}|${preference.preferredTime}`;
+  }
+
+  return `${preference.direction}|${toDateKey(preference.preferredDate)}|${preference.preferredTime}`;
+}
+
+export function dedupeTravelPreferences(preferences) {
+  const seen = new Set();
+
+  return preferences.filter((preference) => {
+    const key = getTravelPreferenceUniqueKey(preference);
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
 import { formatDirectionLabel, formatMemberName } from './memberInterest.js';
 
 const LOCATION_LABELS = {
@@ -128,6 +150,8 @@ export function formatStaffTravelPreferenceListItem(preference) {
     dayOfWeek: preference.dayOfWeek,
     preferredDate: preference.preferredDate,
     memberId: preference.memberId,
+    memberName: preference.member ? formatMemberName(preference.member) : null,
+    memberEmail: preference.member?.email ?? null,
     createdAt: preference.createdAt,
   };
 }
@@ -207,7 +231,7 @@ export function formatTravelPreference(preference) {
 }
 
 export function groupTravelPreferences(preferences) {
-  const formatted = preferences.map(formatTravelPreference);
+  const formatted = dedupeTravelPreferences(preferences).map(formatTravelPreference);
 
   return {
     recurring: formatted.filter((preference) => preference.type === 'RECURRING'),

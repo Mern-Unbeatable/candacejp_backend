@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { buildPagination } from '../utils/pagination.js';
+import { buildMemberSearchWhere } from '../utils/message.js';
 import { getActivePassengerCount, formatReservationForMember, formatOpportunityDetailsForStaff } from '../utils/reservation.js';
 import {
     buildRouteSummary,
@@ -49,7 +50,7 @@ function normalizeInterestDirection(direction) {
     throw new Error('Invalid direction filter. Use all, NYC_TAMPA, or TAMPA_NYC.');
 }
 
-function buildMemberInterestWhere({ direction, status }) {
+function buildMemberInterestWhere({ direction, status, search, date }) {
     const where = {};
     const normalizedDirection = normalizeInterestDirection(direction);
 
@@ -65,10 +66,25 @@ function buildMemberInterestWhere({ direction, status }) {
         where.status = normalizedStatus;
     }
 
+    const term = search?.trim();
+    if (term) {
+        where.member = buildMemberSearchWhere(term);
+    }
+
+    const dateValue = date?.trim();
+    if (dateValue) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+            throw new Error('Invalid date filter. Use YYYY-MM-DD.');
+        }
+
+        const { start, end } = getDayBounds(dateValue);
+        where.departureDate = { gte: start, lt: end };
+    }
+
     return where;
 }
 
-function buildTravelPreferenceWhere({ type, direction, status }) {
+function buildTravelPreferenceWhere({ type, direction, status, search }) {
     const where = {};
     const isRecurring = normalizeTravelPreferenceType(type);
 
@@ -85,10 +101,15 @@ function buildTravelPreferenceWhere({ type, direction, status }) {
         where.status = normalizeTravelPreferenceStatus(status);
     }
 
+    const term = search?.trim();
+    if (term) {
+        where.member = buildMemberSearchWhere(term);
+    }
+
     return where;
 }
 
-function buildOpportunityWhere({ direction, status }) {
+function buildOpportunityWhere({ direction, status, date }) {
     const where = {};
     const normalizedDirection = normalizeInterestDirection(direction);
 
@@ -102,6 +123,16 @@ function buildOpportunityWhere({ direction, status }) {
             throw new Error('Invalid status filter. Use all, DRAFT, OPEN_FOR_RESERVATION, CONFIRMED, or COMPLETED.');
         }
         where.status = normalizedStatus;
+    }
+
+    const dateValue = date?.trim();
+    if (dateValue) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+            throw new Error('Invalid date filter. Use YYYY-MM-DD.');
+        }
+
+        const { start, end } = getDayBounds(dateValue);
+        where.departureDate = { gte: start, lt: end };
     }
 
     return where;
@@ -658,6 +689,16 @@ class StaffService {
                 skip,
                 take: perPage,
                 orderBy: { createdAt: 'desc' },
+                include: {
+                    member: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                        },
+                    },
+                },
             }),
             prisma.travelPreference.count({ where }),
         ]);

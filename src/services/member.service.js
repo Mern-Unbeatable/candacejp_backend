@@ -9,6 +9,8 @@ import {
   formatTravelPreference,
   formatTravelPreferenceForUpcoming,
   formatDepartureText,
+  formatPreferredDate,
+  getTravelPreferenceUniqueKey,
   groupTravelPreferences,
   resolveRoute,
 } from '../utils/travelPreference.js';
@@ -457,16 +459,47 @@ class MemberService {
 
   async createTravelPreference(memberId, payload) {
     const { origin, destination, direction } = resolveRoute(payload.from, payload.to);
+    const isRecurring = payload.type === 'RECURRING';
+    const preferredDate = isRecurring ? null : parseDateOnly(payload.preferredDate);
+
+    const existingPreferences = await prisma.travelPreference.findMany({
+      where: {
+        memberId,
+        isRecurring,
+        direction,
+        preferredTime: payload.preferredTime,
+        ...(isRecurring ? { dayOfWeek: payload.dayOfWeek } : {}),
+      },
+    });
+
+    const duplicate = existingPreferences.find(
+      (preference) => getTravelPreferenceUniqueKey(preference)
+        === getTravelPreferenceUniqueKey({
+          isRecurring,
+          direction,
+          dayOfWeek: payload.dayOfWeek,
+          preferredDate,
+          preferredTime: payload.preferredTime,
+        }),
+    );
+
+    if (duplicate) {
+      throw new Error(
+        isRecurring
+          ? `You already have this saved: ${origin} → ${destination} on ${payload.dayOfWeek} (${payload.preferredTime}).`
+          : `You already have this saved: ${origin} → ${destination} on ${formatPreferredDate(preferredDate)} (${payload.preferredTime}).`,
+      );
+    }
 
     const preference = await prisma.travelPreference.create({
       data: {
         memberId,
-        isRecurring: payload.type === 'RECURRING',
+        isRecurring,
         direction,
         origin,
         destination,
-        dayOfWeek: payload.type === 'RECURRING' ? payload.dayOfWeek : null,
-        preferredDate: payload.type === 'ONE_TIME' ? new Date(payload.preferredDate) : null,
+        dayOfWeek: isRecurring ? payload.dayOfWeek : null,
+        preferredDate,
         preferredTime: payload.preferredTime,
       },
     });

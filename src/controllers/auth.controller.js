@@ -130,6 +130,55 @@ class AuthController {
       return sendError(res, error.message, 403);
     }
   };
+
+  forgotPassword = async (req, res) => {
+    const { email } = req.body;
+
+    try {
+      const result = await authService.forgotPassword(email);
+      logger.info(`Password reset OTP requested for: ${email}`);
+      return sendSuccess(res, result.message, result);
+    } catch (error) {
+      logger.error(`Forgot password failed for ${email} - Error: ${error.message}`);
+      return sendError(res, 'Unable to process password reset request.', 500);
+    }
+  };
+
+  verifyOtp = async (req, res) => {
+    const { email, otp } = req.body;
+
+    try {
+      const result = await authService.verifyOtp(email, otp);
+      logger.info(`Password reset OTP verified for: ${email}`);
+      return sendSuccess(res, 'Verification successful.', result);
+    } catch (error) {
+      logger.warn(`OTP verification failed for ${email} - Error: ${error.message}`);
+
+      if (error.message === 'Invalid OTP' || error.message === 'Invalid or expired OTP') {
+        return sendError(res, 'The verification code is invalid or has expired.', 400);
+      }
+
+      return sendError(res, 'Unable to verify code.', 500);
+    }
+  };
+
+  resetPassword = async (req, res) => {
+    const { resetToken, password } = req.body;
+
+    try {
+      await authService.resetPassword(resetToken, password);
+      logger.info('Password reset completed successfully');
+      return sendSuccess(res, 'Password reset successfully.');
+    } catch (error) {
+      logger.warn(`Password reset failed - Error: ${error.message}`);
+
+      if (error.message === 'Invalid or expired reset token') {
+        return sendError(res, 'Your reset link has expired. Please start again.', 400);
+      }
+
+      return sendError(res, 'Unable to reset password.', 500);
+    }
+  };
 }
 
 export default new AuthController();
