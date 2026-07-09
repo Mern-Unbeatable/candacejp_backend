@@ -1,9 +1,14 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import prisma from '../lib/prisma.js';
+import emailService from './email.service.js';
 import { getInactiveAccountErrorCode } from '../utils/accountStatus.js';
 import { withTokenExpiryMeta } from '../utils/jwt.js';
+
+const OTP_EXPIRY_MINUTES = 10;
+const RESET_TOKEN_EXPIRY_MINUTES = 15;
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -17,6 +22,18 @@ function sanitizeUser(user) {
   if (!user) return user
   const { password, stripeCustomerId, ...safeUser } = user
   return safeUser
+}
+
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+function generateOtp() {
+  return String(Math.floor(10000 + Math.random() * 90000));
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 class AuthService {
@@ -219,6 +236,101 @@ class AuthService {
 
       throw new Error('Invalid or expired refresh token');
     }
+  }
+
+  async forgotPassword(email) {
+    const normalizedEmail = normalizeEmail(email);
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (user?.status === 'ACTIVE') {
+      const otp = generateOtp();
+      const otpHash = await bcrypt.hash(otp, 10);
+      const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+      await prisma.passwordResetOtp.deleteMany({
+        where: { userId: user.id, verifiedAt: null },
+      });
+
+      await prisma.passwordResetOtp.create({
+        data: { userId: user.id, otpHash, expiresAt },
+      });
+
+      await emailService.sendPasswordResetOtp(user.email, otp);
+    }
+
+    return {
+      message: 'If that email is registered, you will receive a verification code.',
+    };
+  }
+
+  async verifyOtp(email, otp) {
+    const normalizedEmail = normalizeEmail(email);
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (!user) {
+      throw new Error('Invalid OTP');
+    }
+
+    const record = await prisma.passwordResetOtp.findFirst({
+      where: {
+        userId: user.id,
+        verifiedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!record) {
+      throw new Error('Invalid or expired OTP');
+    }
+
+    const isValid = await bcrypt.compare(otp, record.otpHash);
+    if (!isValid) {
+      throw new Error('Invalid OTP');
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000);
+
+    await prisma.passwordResetOtp.update({
+      where: { id: record.id },
+      data: {
+        verifiedAt: new Date(),
+        resetTokenHash: hashResetToken(resetToken),
+        resetTokenExpiresAt,
+      },
+    });
+
+    return { resetToken };
+  }
+
+  async resetPassword(resetToken, password) {
+    const record = await prisma.passwordResetOtp.findFirst({
+      where: {
+        resetTokenHash: hashResetToken(resetToken),
+        resetTokenExpiresAt: { gt: new Date() },
+        verifiedAt: { not: null },
+      },
+    });
+
+    if (!record) {
+      throw new Error('Invalid or expired reset token');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: record.userId },
+        data: { password: hashedPassword },
+      }),
+      prisma.passwordResetOtp.deleteMany({
+        where: { userId: record.userId },
+      }),
+    ]);
+
+    return { success: true };
   }
 }
 

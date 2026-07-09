@@ -332,10 +332,15 @@ class MessageService {
       prisma.message.count({ where }),
     ]);
 
+    const fullPartner = await prisma.user.findUnique({
+      where: { id: partnerId },
+      select: userSelect,
+    });
+
     return {
       messages: messages.map(formatMessage),
       pagination: buildPagination(currentPage, perPage, total),
-      partner: {
+      partner: fullPartner ? this.formatPartner(fullPartner) : {
         id: partnerId,
         isOnline: isUserOnline(partnerId),
       },

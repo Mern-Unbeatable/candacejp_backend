@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { PREFERRED_TIME_OPTIONS } from '../utils/travelPreference.js';
 
 const nycPattern = /nyc|teb|jfk|new york/i;
 const tampaPattern = /tampa|tpa/i;
@@ -34,6 +35,13 @@ class StaffValidation {
       'date.greater': 'Departure date must be in the future.',
       'any.required': 'Departure date is required.',
     }),
+    preferredTime: Joi.string()
+      .valid(...PREFERRED_TIME_OPTIONS)
+      .required()
+      .messages({
+        'any.only': 'Preferred time must be Morning, Afternoon, or Evening.',
+        'any.required': 'Preferred time is required.',
+      }),
     returnDate: Joi.when('tripType', {
       is: 'ROUND_TRIP',
       then: Joi.date().iso().greater(Joi.ref('departureDate')).required().messages({
@@ -59,6 +67,11 @@ class StaffValidation {
     destination: Joi.string().trim(),
     tripType: Joi.string().valid('ONE_WAY', 'ROUND_TRIP'),
     departureDate: Joi.date().iso().greater('now'),
+    preferredTime: Joi.string()
+      .valid(...PREFERRED_TIME_OPTIONS)
+      .messages({
+        'any.only': 'Preferred time must be Morning, Afternoon, or Evening.',
+      }),
     returnDate: Joi.date().iso().allow(null),
     estimatedPrice: Joi.number().positive(),
     aircraftType: Joi.string().trim().allow('', null),

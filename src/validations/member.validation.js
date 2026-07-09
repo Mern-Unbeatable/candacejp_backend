@@ -116,7 +116,8 @@ class MemberValidation {
             'string.email': 'Passenger email must be valid.',
             'any.required': 'Passenger email is required.',
           }),
-          phone: Joi.string().trim().required().messages({
+          phone: Joi.string().trim().pattern(/^\d{10,15}$/).required().messages({
+            'string.pattern.base': 'Passenger phone must be 10-15 digits.',
             'any.required': 'Passenger phone is required.',
           }),
         })

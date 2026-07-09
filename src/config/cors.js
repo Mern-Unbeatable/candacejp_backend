@@ -8,6 +8,7 @@ const devOrigins = [
 ];
 
 const productionOrigins = [
+  'https://candacejp.maktechgroup.tech',
   'https://6a410b86277413620dd2056b--shimmering-daffodil-fd30f2.netlify.app',
 ];
 

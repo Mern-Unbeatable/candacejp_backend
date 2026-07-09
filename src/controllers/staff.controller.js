@@ -15,8 +15,18 @@ class StaffController {
 
     getAll = async (req, res) => {
         try {
-            const { page = 1, limit = 10, direction = 'all', status = 'all' } = req.query;
-            const data = await staffService.getAllOpportunities(page, limit, { direction, status });
+            const {
+                page = 1,
+                limit = 10,
+                direction = 'all',
+                status = 'all',
+                date = '',
+            } = req.query;
+            const data = await staffService.getAllOpportunities(page, limit, {
+                direction,
+                status,
+                date,
+            });
             return sendSuccess(res, 'Opportunities retrieved successfully.', data);
         } catch (e) { return sendError(res, e.message, 400); }
     };
@@ -90,8 +100,20 @@ class StaffController {
 
     getMemberInterests = async (req, res) => {
         try {
-            const { page = 1, limit = 10, direction = 'all', status = 'all' } = req.query;
-            const data = await staffService.getMemberInterests(page, limit, { direction, status });
+            const {
+                page = 1,
+                limit = 10,
+                direction = 'all',
+                status = 'all',
+                search = '',
+                date = '',
+            } = req.query;
+            const data = await staffService.getMemberInterests(page, limit, {
+                direction,
+                status,
+                search,
+                date,
+            });
             return sendSuccess(res, 'Member interests retrieved successfully.', data);
         } catch (e) {
             return sendError(res, e.message, 400);
@@ -126,8 +148,14 @@ class StaffController {
                 type,
                 direction = 'all',
                 status = 'all',
+                search = '',
             } = req.query;
-            const data = await staffService.getTravelPreferences(page, limit, { type, direction, status });
+            const data = await staffService.getTravelPreferences(page, limit, {
+                type,
+                direction,
+                status,
+                search,
+            });
             return sendSuccess(res, 'Travel preferences retrieved successfully.', data);
         } catch (e) {
             return sendError(res, e.message, 400);
