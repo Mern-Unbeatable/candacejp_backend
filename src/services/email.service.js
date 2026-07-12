@@ -51,15 +51,19 @@ class EmailService {
       </div>
     `;
 
+    if (process.env.NODE_ENV !== 'production') {
+      logger.info(`[DEV] Password reset OTP for ${email}: ${otp}`);
+      console.log(`\n========================================`);
+      console.log(`[DEV] Password reset OTP for ${email}: ${otp}`);
+      console.log(`========================================\n`);
+    }
+
     const transporter = this.getTransporter();
 
     if (!transporter) {
       if (process.env.NODE_ENV === 'production') {
         throw new Error('SMTP is not configured');
       }
-
-      logger.info(`[DEV] Password reset OTP for ${email}: ${otp}`);
-      console.log(`\n[DEV] Password reset OTP for ${email}: ${otp}\n`);
       return;
     }
 
@@ -72,10 +76,6 @@ class EmailService {
     });
 
     logger.info(`Password reset OTP email sent to ${email}`);
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`\n[DEV] Password reset OTP for ${email}: ${otp}\n`);
-    }
   }
 }
 

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import prisma from '../lib/prisma.js';
 import emailService from './email.service.js';
+import logger from '../utils/logger.js';
 import { getInactiveAccountErrorCode } from '../utils/accountStatus.js';
 import { withTokenExpiryMeta } from '../utils/jwt.js';
 
@@ -241,9 +242,10 @@ class AuthService {
   async forgotPassword(email) {
     const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    let otp = null;
 
-    if (user?.status === 'ACTIVE') {
-      const otp = generateOtp();
+    if (user && user.status !== 'INACTIVE') {
+      otp = generateOtp();
       const otpHash = await bcrypt.hash(otp, 10);
       const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
@@ -255,7 +257,13 @@ class AuthService {
         data: { userId: user.id, otpHash, expiresAt },
       });
 
-      await emailService.sendPasswordResetOtp(user.email, otp);
+      try {
+        await emailService.sendPasswordResetOtp(user.email, otp);
+      } catch (err) {
+        logger.warn(`Could not send OTP email to ${user.email}: ${err.message}`);
+      }
+    } else {
+      logger.info(`Forgot password requested for non-existent or inactive email: ${email}`);
     }
 
     return {
