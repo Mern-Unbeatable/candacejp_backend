@@ -5,6 +5,7 @@
  * because Prisma reads DATABASE_URL at module load time.
  */
 import { loadSecrets } from './config/loadSecrets.js';
+import { logDatabaseDiagnostics } from './config/database.js';
 
 const config = await loadSecrets();
 console.log(
@@ -13,5 +14,6 @@ console.log(
   + `passwordSource=${config.passwordSource}; `
   + `databaseUrl=${config.hasDatabaseUrl ? 'ready' : 'missing'}`,
 );
+logDatabaseDiagnostics('startup');
 
 await import('./server.js');

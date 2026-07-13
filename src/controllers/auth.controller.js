@@ -44,6 +44,58 @@ class AuthController {
       logger.info(`User logged in successfully: ${email}`);
       return sendSuccess(res, 'Login successful.', result);
     } catch (error) {
+      const knownAuthErrors = new Set([
+        'User not found',
+        'Incorrect password',
+        'PaymentRequired',
+        'MemberAccountInactive',
+        'AccountInactive',
+      ]);
+
+      if (!knownAuthErrors.has(error.message)) {
+        const { explainDatabaseError, logDatabaseDiagnostics } = await import('../config/database.js');
+        const dbIssue = explainDatabaseError(error);
+
+        console.error('========== LOGIN FAILURE DEBUG ==========');
+        console.error(`[login] email=${email}`);
+        console.error(`[login] errorName=${error?.name || 'Error'}`);
+        console.error(`[login] errorCode=${error?.code || error?.meta?.code || '(none)'}`);
+        console.error(`[login] errorMessage=${error?.message}`);
+        console.error(`[login] dbIssueType=${dbIssue.type}`);
+        console.error(`[login] hint=${dbIssue.hint}`);
+        if (error?.stack) {
+          console.error(`[login] stack=${error.stack}`);
+        }
+        logDatabaseDiagnostics('login');
+        console.error('=========================================');
+
+        logger.error(
+          `Login failed for ${email} - [${dbIssue.type}] ${error.message} | hint: ${dbIssue.hint}`,
+        );
+
+        if (dbIssue.type === 'DB_AUTH_FAILED') {
+          return sendError(
+            res,
+            'Database authentication failed. Check DATABASE_USER / DATABASE_PASSWORD on the server.',
+            500,
+            { debugType: dbIssue.type },
+          );
+        }
+
+        if (dbIssue.type === 'DB_UNREACHABLE') {
+          return sendError(
+            res,
+            'Database is unreachable. Check DATABASE_HOST / port / network access.',
+            500,
+            { debugType: dbIssue.type },
+          );
+        }
+
+        return sendError(res, 'An unexpected error occurred during login.', 500, {
+          debugType: dbIssue.type,
+        });
+      }
+
       logger.error(`Login failed for ${email} - Error: ${error.message}`);
 
       if (error.message === 'User not found') {
