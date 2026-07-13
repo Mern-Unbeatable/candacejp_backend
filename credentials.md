@@ -64,7 +64,7 @@ This document follows the credentials decisions from the client.
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_PASSWORD` | Use **only** when AWS Secrets Manager is not enabled yet (local/dev). Remove in production once AWS is connected. |
+| `DATABASE_PASSWORD` | Use **only** when AWS Secrets Manager is not enabled yet (local/dev). Remove in production once AWS is used. **Do not wrap in quotes** if your host (e.g. Coolify) stores env values raw — special characters are encoded when building `DATABASE_URL`. |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Local AWS credentials only. Not needed on ECS if the task role has permission. |
 
 ---
@@ -174,4 +174,26 @@ DATABASE_PASSWORD=your-local-password
 # AWS_SECRET_NAME=raven/backend/database-password
 ```
 
-When AWS is ready locally or in deploy: set `AWS_SECRET_NAME`, then remove `DATABASE_PASSWORD` from `.env`.
+### Coolify note
+
+Coolify stores env values **without quotes**. That is fine:
+
+```env
+DATABASE_PASSWORD=2yWKwo7s3EXf~lGJT[D:0nDKze1_
+```
+
+Special characters are URL-encoded when the app builds `DATABASE_URL`.
+
+If Coolify or the host mangles `[` / `~` / `:`, set a full pre-encoded URL instead:
+
+```env
+DATABASE_URL=postgresql://postgres:ENCODED_PASSWORD@HOST:5432/postgres
+```
+
+and leave `DATABASE_HOST` / `DATABASE_USER` / `DATABASE_PASSWORD` unset.
+
+For RDS, also set:
+
+```env
+DATABASE_SSLMODE=no-verify
+```

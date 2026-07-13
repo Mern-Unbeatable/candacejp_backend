@@ -112,7 +112,8 @@ export function buildDatabaseUrl({
   }
 
   const encodedUser = encodeURIComponent(user);
-  const encodedPassword = encodeURIComponent(password);
+  // Match Postgres URI encoding used in connection strings (encode ~ as %7E too)
+  const encodedPassword = encodeURIComponent(password).replace(/~/g, '%7E');
   const encodedHost = host.replace(/^https?:\/\//, '');
 
   let url = `postgresql://${encodedUser}:${encodedPassword}@${encodedHost}:${port}/${name}`;

@@ -3,11 +3,12 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import { loadSecrets } from '../src/config/loadSecrets.js';
+import { getPgPoolConfig } from '../src/config/database.js';
 
 async function main() {
   await loadSecrets();
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new Pool(getPgPoolConfig());
   const adapter = new PrismaPg(pool);
   const prisma = new PrismaClient({ adapter });
 
