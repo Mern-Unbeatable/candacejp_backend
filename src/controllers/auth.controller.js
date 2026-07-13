@@ -54,7 +54,16 @@ class AuthController {
 
       if (!knownAuthErrors.has(error.message)) {
         const { explainDatabaseError, logDatabaseDiagnostics } = await import('../config/database.js');
-        const dbIssue = explainDatabaseError(error);
+        const isJwtSecretMissing =
+          error.message === 'secretOrPrivateKey must have a value'
+          || (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET);
+        const dbIssue = isJwtSecretMissing
+          ? {
+            type: 'JWT_SECRET_MISSING',
+            hint:
+              'Set JWT_ACCESS_SECRET and JWT_REFRESH_SECRET in Coolify Environment Variables, then restart.',
+          }
+          : explainDatabaseError(error);
 
         console.error('========== LOGIN FAILURE DEBUG ==========');
         console.error(`[login] email=${email}`);
@@ -63,6 +72,10 @@ class AuthController {
         console.error(`[login] errorMessage=${error?.message}`);
         console.error(`[login] dbIssueType=${dbIssue.type}`);
         console.error(`[login] hint=${dbIssue.hint}`);
+        console.error(
+          `[login] JWT_ACCESS_SECRET set=${Boolean(process.env.JWT_ACCESS_SECRET)} `
+          + `JWT_REFRESH_SECRET set=${Boolean(process.env.JWT_REFRESH_SECRET)}`,
+        );
         if (error?.stack) {
           console.error(`[login] stack=${error.stack}`);
         }
@@ -72,6 +85,15 @@ class AuthController {
         logger.error(
           `Login failed for ${email} - [${dbIssue.type}] ${error.message} | hint: ${dbIssue.hint}`,
         );
+
+        if (dbIssue.type === 'JWT_SECRET_MISSING') {
+          return sendError(
+            res,
+            'Server misconfigured: JWT_ACCESS_SECRET / JWT_REFRESH_SECRET are missing.',
+            500,
+            { debugType: dbIssue.type },
+          );
+        }
 
         if (dbIssue.type === 'DB_AUTH_FAILED') {
           return sendError(

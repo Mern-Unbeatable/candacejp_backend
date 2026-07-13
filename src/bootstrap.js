@@ -16,4 +16,17 @@ console.log(
 );
 logDatabaseDiagnostics('startup');
 
+const missingJwt = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'].filter(
+  (key) => !process.env[key],
+);
+if (missingJwt.length) {
+  console.error(
+    `[startup] MISSING JWT SECRETS: ${missingJwt.join(', ')}. `
+    + 'Login will fail with "secretOrPrivateKey must have a value". '
+    + 'Set these in Coolify Environment Variables.',
+  );
+} else {
+  console.log('[startup] JWT_ACCESS_SECRET and JWT_REFRESH_SECRET are set');
+}
+
 await import('./server.js');
