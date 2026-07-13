@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "src/server.js",
+  "main": "src/bootstrap.js",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node src/bootstrap.js",
+    "dev": "nodemon src/bootstrap.js",
     "build": "prisma generate",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
@@ -22,10 +22,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1085.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.6.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "joi": "^18.2.3",
     "jsonwebtoken": "^9.0.2",

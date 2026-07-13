@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { createServer } from 'http';
 import app from './app.js';
 import logger from './utils/logger.js';
