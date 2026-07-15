@@ -12,7 +12,12 @@ console.log(
   `[secrets] env=${config.nodeEnv}; `
   + `secret=${config.secretName || 'none'}; `
   + `passwordSource=${config.passwordSource}; `
+  + `awsKeys=${config.awsKeys?.length || 0}; `
   + `databaseUrl=${config.hasDatabaseUrl ? 'ready' : 'missing'}`,
+);
+console.log(
+  '[secrets] Precedence: AWS Secrets Manager wins over .env; '
+  + '.env fills anything AWS does not provide',
 );
 logDatabaseDiagnostics('startup');
 

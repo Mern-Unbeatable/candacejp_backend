@@ -1,199 +1,154 @@
 # Backend Credentials Guide
 
-This document follows the credentials decisions from the client.
+## Precedence (source of truth)
 
-## Client decisions
+1. Load `.env` / Coolify env first (baseline)
+2. Load AWS Secrets Manager secret from `AWS_SECRET_NAME`
+3. **If the same key exists in both → AWS wins**
+4. Keys missing from AWS stay on `.env`
+5. Build internal `DATABASE_URL` for Prisma
 
-1. **Postgres API URL(s)** will be stored in **environment variables**
-2. **Postgres user name(s)** will be stored in **environment variables**
-3. **Postgres password(s)** will be stored in **AWS Secrets Manager**
-4. **The secret name** will be stored in **environment variables**
-5. **The environment name (DEV / PROD)** will be stored in **environment variables**
-
----
-
-## Summary: where each item goes
-
-| # | Item | Store in |
-|---|------|----------|
-| 1 | Postgres API URL / host | Environment variables (`.env` / container env) |
-| 2 | Postgres username | Environment variables |
-| 3 | Postgres password | AWS Secrets Manager |
-| 4 | AWS secret name | Environment variables (`AWS_SECRET_NAME`) |
-| 5 | Environment name (DEV/PROD) | Environment variables (`NODE_ENV`) |
+This keeps client AWS values authoritative and still lets you fill gaps locally.
 
 ---
 
-## 1. Environment variables (`.env` / host / container)
+## Client decisions (original)
 
-### Required by client decisions
+1. Postgres API URL(s) → environment variables *(or AWS JSON; AWS wins if both)*
+2. Postgres user name(s) → environment variables *(or AWS JSON; AWS wins if both)*
+3. Postgres password(s) → AWS Secrets Manager
+4. Secret name → environment variables (`AWS_SECRET_NAME`)
+5. Environment name (DEV / PROD) → environment variables (`NODE_ENV`)
 
-| Variable | Maps to client decision | Example |
-|----------|-------------------------|---------|
-| `DATABASE_HOST` | (1) Postgres API URL / host | `raven-dev-db.xxxxx.rds.amazonaws.com` |
-| `DATABASE_USER` | (2) Postgres username | `postgres` |
-| `AWS_SECRET_NAME` | (4) Secret name | `raven/backend/database-password` |
-| `NODE_ENV` | (5) DEV / PROD | `development` or `production` |
+---
 
-### Supporting DB settings (also in environment)
+## 1. Environment variables (`.env` / Coolify)
 
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `DATABASE_PORT` | Postgres port | `5432` |
-| `DATABASE_NAME` | Database name | `postgres` |
-| `DATABASE_SSLMODE` | SSL mode for RDS, if needed | `no-verify` |
-| `AWS_REGION` | AWS region for Secrets Manager | `us-east-1` |
-
-### Other app config (environment — not in AWS per current setup)
+Always needed so the app can call AWS:
 
 | Variable | Purpose |
 |----------|---------|
-| `PORT` | API port (default `3000`) |
-| `JWT_ACCESS_SECRET` | Access token signing key |
-| `JWT_ACCESS_EXPIRES_IN` | e.g. `15m` |
-| `JWT_REFRESH_SECRET` | Refresh token signing key |
-| `JWT_REFRESH_EXPIRES_IN` | e.g. `7d` |
-| `STRIPE_SECRET_KEY` | Stripe secret key |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
-| `CLIENT_URL` | Frontend URL |
-| `CORS_ALLOWED_ORIGINS` | Extra CORS origins |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` | Email server |
-| `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | Email auth + from address |
+| `AWS_SECRET_NAME` | Name/ARN of the AWS secret to load |
+| `AWS_REGION` | e.g. `us-east-1` |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Only if no IAM role (Coolify / local) |
+| `NODE_ENV` | `development` or `production` |
 
-### Local-only fallback (optional)
+Fallback / fill-the-gaps (used when AWS does not provide the key):
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_PASSWORD` | Use **only** when AWS Secrets Manager is not enabled yet (local/dev). Remove in production once AWS is used. **Do not wrap in quotes** if your host (e.g. Coolify) stores env values raw — special characters are encoded when building `DATABASE_URL`. |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Local AWS credentials only. Not needed on ECS if the task role has permission. |
+| `DATABASE_HOST` | Postgres host |
+| `DATABASE_USER` | Postgres username |
+| `DATABASE_PORT` | Default `5432` |
+| `DATABASE_NAME` | Default `postgres` |
+| `DATABASE_SSLMODE` | For RDS: `no-verify` |
+| `DATABASE_PASSWORD` | Local-only when AWS password is unavailable |
+| `JWT_*`, `STRIPE_*`, `SMTP_*`, `CLIENT_URL`, … | App config if not in AWS |
 
 ---
 
 ## 2. AWS Secrets Manager
 
-Per client decision **#3**, only the **Postgres password** belongs here.
-
 ### Secret name
 
-Stored in environment as `AWS_SECRET_NAME` (client decision **#4**).
-
-Example:
+Set in Coolify / `.env`:
 
 ```text
-raven/backend/database-password
+AWS_SECRET_NAME=rds!db-83222df7-0ee3-49e2-a45c-a8b0d66d9cfc
 ```
 
-### Secret value
+Or a client “config” secret that contains several keys.
 
-**Option A — plain text**
+### Supported secret shapes
 
-```text
-your-database-password
-```
-
-**Option B — JSON**
+**A) Client-style config JSON**
 
 ```json
 {
-  "DATABASE_PASSWORD": "your-database-password"
+  "RDS_Endpoint": "raven-dev-db.xxxxx.us-east-1.rds.amazonaws.com",
+  "RDS_UN": "postgres",
+  "RDS_PW_Secret": "rds!db-83222df7-0ee3-49e2-a45c-a8b0d66d9cfc",
+  "JWT_ACCESS_SECRET": "...",
+  "JWT_REFRESH_SECRET": "..."
 }
 ```
 
-Also accepted JSON keys: `password`, `DB_PASSWORD`, `POSTGRES_PASSWORD`.
+Aliases mapped automatically:
 
-### Access
+| AWS / client key | App env key |
+|------------------|-------------|
+| `RDS_Endpoint` | `DATABASE_HOST` |
+| `RDS_UN` | `DATABASE_USER` |
+| `RDS_PW_Secret` | nested fetch → `DATABASE_PASSWORD` |
 
-- Production container: IAM task role with `secretsmanager:GetSecretValue`
-- Local: AWS keys or profile, if testing against Secrets Manager
+**B) RDS-managed secret JSON** (`username`, `password`, `host`, `port`, …)
 
----
+**C) Plain text** — whole value = `DATABASE_PASSWORD`
 
-## 3. How the backend uses this
-
-At startup (`bootstrap.js` → `loadSecrets.js`):
-
-1. Load environment variables (`NODE_ENV`, host, username, secret name, etc.)
-2. Read Postgres password from AWS Secrets Manager using `AWS_SECRET_NAME`
-3. Build internal `DATABASE_URL` from host + user + password
-4. If AWS is not configured, fall back to `DATABASE_PASSWORD` from `.env` (local only)
+Empty values and `-` in AWS are ignored (do not override `.env`).
 
 ---
 
-## 4. Do / don’t
+## 3. Startup flow
 
-| Do | Don’t |
-|----|--------|
-| Put host/URL and username in env | Put Postgres password in production env |
-| Put password in AWS Secrets Manager | Put full `postgresql://user:password@host/...` in AWS as the main pattern |
-| Put secret **name** in env | Put the secret name only inside the secret value and nowhere in env |
-| Set `NODE_ENV` to `development` or `production` | Mix DEV host with PROD password (or the reverse) |
+`bootstrap.js` → `loadSecrets.js`:
+
+1. `.env` baseline
+2. Fetch AWS secret → apply keys (AWS wins)
+3. If `RDS_PW_Secret` points at another secret, fetch password there too
+4. Build `DATABASE_URL`
+5. Log what came from AWS (key names only, never password values)
 
 ---
 
-## 5. Example: production environment (no password in env)
+## 4. Coolify checklist
 
 ```env
 NODE_ENV=production
-
-DATABASE_HOST=raven-dev-db.xxxxx.us-east-1.rds.amazonaws.com
-DATABASE_PORT=5432
-DATABASE_NAME=postgres
-DATABASE_USER=postgres
-DATABASE_SSLMODE=no-verify
-
 AWS_REGION=us-east-1
-AWS_SECRET_NAME=raven/backend/database-password
+AWS_SECRET_NAME=rds!db-83222df7-0ee3-49e2-a45c-a8b0d66d9cfc
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
 
+# Optional fill-the-gaps if not in AWS:
+DATABASE_SSLMODE=no-verify
 JWT_ACCESS_SECRET=...
 JWT_REFRESH_SECRET=...
-STRIPE_SECRET_KEY=...
 CLIENT_URL=https://your-frontend.example.com
 ```
 
-AWS secret value:
+You do **not** need `DATABASE_PASSWORD` in Coolify when AWS supplies it.
 
-```json
-{
-  "DATABASE_PASSWORD": "..."
-}
+Success logs look like:
+
+```text
+[secrets] Applied ... value(s) from AWS (...)
+[secrets] Built DATABASE_URL from DATABASE_HOST + DATABASE_USER + password
+[secrets] Precedence: AWS Secrets Manager wins over .env
 ```
 
 ---
 
-## 6. Example: local development (AWS commented for now)
+## 5. Local development (no AWS)
 
 ```env
 NODE_ENV=development
-
-DATABASE_HOST=187.x.x.x
-DATABASE_PORT=5469
+DATABASE_HOST=127.0.0.1
+DATABASE_PORT=5432
 DATABASE_NAME=postgres
 DATABASE_USER=postgres
 DATABASE_PASSWORD=your-local-password
-
-# AWS_SECRET_NAME=raven/backend/database-password
+JWT_ACCESS_SECRET=...
+JWT_REFRESH_SECRET=...
+# AWS_SECRET_NAME=
 ```
 
-### Coolify note
+---
 
-Coolify stores env values **without quotes**. That is fine:
+## 6. Do / don’t
 
-```env
-DATABASE_PASSWORD=2yWKwo7s3EXf~lGJT[D:0nDKze1_
-```
-
-Special characters are URL-encoded when the app builds `DATABASE_URL`.
-
-If Coolify or the host mangles `[` / `~` / `:`, set a full pre-encoded URL instead:
-
-```env
-DATABASE_URL=postgresql://postgres:ENCODED_PASSWORD@HOST:5432/postgres
-```
-
-and leave `DATABASE_HOST` / `DATABASE_USER` / `DATABASE_PASSWORD` unset.
-
-For RDS, also set:
-
-```env
-DATABASE_SSLMODE=no-verify
-```
+| Do | Don’t |
+|----|--------|
+| Put authoritative secrets in AWS | Expect client `RDS_*` names to work without this loader |
+| Keep JWT in Coolify if client did not put JWT in AWS | Put production DB password only in `.env` when AWS is available |
+| Rotate any AWS keys that were shared in chat | Commit `.env` or raw AWS keys to git |
