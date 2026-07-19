@@ -75,17 +75,31 @@ class AdminService {
         const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
         const { firstName, lastName } = parseName(data);
 
-        return await prisma.user.create({
-            ...safeUser,
-            data: {
-                email,
-                password: hashedPassword,
-                firstName,
-                lastName,
-                phone: phone ?? null,
-                role: 'CONCIERGE',
-                status: 'ACTIVE',
-            },
+        return prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                ...safeUser,
+                data: {
+                    email,
+                    password: hashedPassword,
+                    name: [firstName, lastName].filter(Boolean).join(' '),
+                    firstName,
+                    lastName,
+                    phone: phone ?? null,
+                    role: 'CONCIERGE',
+                    status: 'ACTIVE',
+                },
+            });
+
+            await tx.account.create({
+                data: {
+                    accountId: user.id,
+                    providerId: 'credential',
+                    userId: user.id,
+                    password: hashedPassword,
+                },
+            });
+
+            return user;
         });
     }
 
@@ -145,6 +159,7 @@ class AdminService {
             ...safeUser,
             where: { id },
             data: {
+                name: [firstName, lastName].filter(Boolean).join(' '),
                 firstName,
                 lastName,
                 phone: data.phone ?? null,
@@ -186,6 +201,7 @@ class AdminService {
             ...safeUser,
             where: { id, role: 'MEMBER' },
             data: {
+                name: [data.firstName, data.lastName].filter(Boolean).join(' '),
                 firstName: data.firstName,
                 lastName: data.lastName,
                 address: data.address,

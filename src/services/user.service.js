@@ -37,11 +37,15 @@ class UserService {
   async updateProfile(id, data) {
     // Process the name fields before passing to prisma
     const nameData = parseName(data);
+    const name = [nameData.firstName, nameData.lastName]
+      .filter(Boolean)
+      .join(' ');
 
     return await prisma.user.update({
       where: { id },
       data: {
         ...nameData,
+        ...(name ? { name } : {}),
         email: data.email,
         phone: data.phone,
         address: data.address,
@@ -60,17 +64,51 @@ class UserService {
       throw new Error('User not found');
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    const account = await prisma.account.findUnique({
+      where: {
+        providerId_accountId: {
+          providerId: 'credential',
+          accountId: id,
+        },
+      },
+    });
+
+    const isMatch = account?.password
+      ? await bcrypt.compare(currentPassword, account.password)
+      : false;
     if (!isMatch) {
       throw new Error('Current password is incorrect');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
-    return await prisma.user.update({
-      where: { id },
-      data: { password: hashedPassword },
-      omit: { password: true },
-    });
+    const [, updatedUser] = await prisma.$transaction([
+      prisma.account.upsert({
+        where: {
+          providerId_accountId: {
+            providerId: 'credential',
+            accountId: id,
+          },
+        },
+        create: {
+          providerId: 'credential',
+          accountId: id,
+          userId: id,
+          password: hashedPassword,
+        },
+        update: { password: hashedPassword },
+      }),
+      prisma.user.update({
+        where: { id },
+        data: { password: hashedPassword },
+        omit: { password: true },
+      }),
+      // Revoke stolen/old bearer sessions after a password change.
+      prisma.session.deleteMany({
+        where: { userId: id },
+      }),
+    ]);
+
+    return updatedUser;
   }
 }
 export default new UserService();

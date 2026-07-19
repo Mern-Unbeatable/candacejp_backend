@@ -1,21 +1,24 @@
-import jwt from 'jsonwebtoken';
+import { fromNodeHeaders } from 'better-auth/node';
 import prisma from '../lib/prisma.js';
+import { auth } from '../lib/auth.js';
 import logger from '../utils/logger.js';
 import { getInactiveAccountMessage } from '../utils/accountStatus.js';
 import { sendError } from '../utils/apiResponse.js';
 
 class AuthMiddleware {
   verifyToken = async (req, res, next) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      logger.warn(`Unauthorized access attempt - No token: ${req.originalUrl}`);
-      return sendError(res, 'Access denied. No token provided.', 401);
-    }
     try {
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+      const sessionData = await auth.api.getSession({
+        headers: fromNodeHeaders(req.headers),
+      });
+
+      if (!sessionData?.user?.id) {
+        logger.warn(`Unauthorized access attempt - No valid session: ${req.originalUrl}`);
+        return sendError(res, 'Invalid or expired session.', 401);
+      }
 
       const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
+        where: { id: sessionData.user.id },
         select: { id: true, role: true, status: true },
       });
 
@@ -31,8 +34,8 @@ class AuthMiddleware {
       req.user = user;
       next();
     } catch (error) {
-      logger.error(`Invalid or expired access token: ${error.message}`);
-      return sendError(res, 'Invalid or expired token.', 401);
+      logger.error(`Invalid or expired Better Auth session: ${error.message}`);
+      return sendError(res, 'Invalid or expired session.', 401);
     }
   };
 

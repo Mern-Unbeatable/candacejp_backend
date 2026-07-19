@@ -1,4 +1,5 @@
 import adminService from '../services/admin.service.js';
+import { disconnectUserSockets } from '../socket/index.js';
 import logger from '../utils/logger.js';
 import { sendError, sendSuccess } from '../utils/apiResponse.js';
 
@@ -27,6 +28,9 @@ class AdminController {
             const { id } = req.params;
             const { status } = req.body;
             const updated = await adminService.updateStaffStatus(id, status);
+            if (status !== 'ACTIVE') {
+                disconnectUserSockets(id);
+            }
             return sendSuccess(res, 'Concierge staff status updated successfully.', updated);
         } catch (error) {
             return sendError(res, error.message, 400);
@@ -36,6 +40,7 @@ class AdminController {
     deleteStaff = async (req, res) => {
         try {
             await adminService.deleteStaff(req.params.id);
+            disconnectUserSockets(req.params.id);
             return sendSuccess(res, 'Concierge staff deleted successfully.');
         } catch (error) {
             if (error.message === 'Staff not found' || error.code === 'P2025') {

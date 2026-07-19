@@ -1,4 +1,5 @@
 import userService from '../services/user.service.js';
+import { disconnectUserSockets } from '../socket/index.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 
 class UserController {
@@ -27,6 +28,7 @@ class UserController {
     try {
       const { currentPassword, newPassword } = req.body;
       await userService.updatePassword(req.user.id, currentPassword, newPassword);
+      disconnectUserSockets(req.user.id);
       return sendSuccess(res, 'Password changed successfully');
     } catch (error) {
       if (error.message === 'Current password is incorrect') {

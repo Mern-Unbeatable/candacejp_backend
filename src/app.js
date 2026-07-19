@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import morgan from "morgan";
 import logger from "./utils/logger.js";
+import { signOut as betterAuthSignOut } from "./controllers/betterAuth.controller.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import userRoutes from "./routes/user.routes.js";
@@ -30,6 +31,11 @@ class App {
   initializeMiddlewares() {
     this.app.use(cors(corsOptions));
     this.app.options(/.*/, cors(corsOptions));
+
+    // Raven owns registration/login/password policy (roles, payment status).
+    // Expose only Better Auth logout; internal server APIs handle sign-in and
+    // session validation without opening generic user-update/auth endpoints.
+    this.app.post('/api/better-auth/sign-out', betterAuthSignOut);
 
     // Middleware to parse JSON request bodies
     this.app.use(express.json());

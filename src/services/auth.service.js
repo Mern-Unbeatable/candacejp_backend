@@ -1,12 +1,12 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
+import { fromNodeHeaders } from 'better-auth/node';
 import prisma from '../lib/prisma.js';
+import { auth, betterAuthSessionExpiresIn } from '../lib/auth.js';
 import emailService from './email.service.js';
 import logger from '../utils/logger.js';
 import { getInactiveAccountErrorCode } from '../utils/accountStatus.js';
-import { withTokenExpiryMeta } from '../utils/jwt.js';
 
 const OTP_EXPIRY_MINUTES = 10;
 const RESET_TOKEN_EXPIRY_MINUTES = 15;
@@ -38,19 +38,15 @@ function hashResetToken(token) {
 }
 
 class AuthService {
-  // Helper method to generate both access and refresh tokens
-  generateTokens(user) {
-    const payload = { id: user.id, role: user.role, status: user.status };
-
-    const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
-      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+  async getCredentialAccount(userId) {
+    return prisma.account.findUnique({
+      where: {
+        providerId_accountId: {
+          providerId: 'credential',
+          accountId: userId,
+        },
+      },
     });
-
-    const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-    });
-
-    return withTokenExpiryMeta(accessToken, refreshToken);
   }
 
   async createRegistrationCheckoutSession(user, { cancelUrl } = {}) {
@@ -97,26 +93,37 @@ class AuthService {
       throw new Error("User already exists");
     }
 
-    // 2. Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. Create the user in Prisma
-    const newUser = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
-        phone,
-        address,
-        city,
-        state,
-        zipCode,
-      },
+    // Create the application user and Better Auth credential account atomically.
+    const newUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword, // temporary compatibility mirror
+          name: [firstName, lastName].filter(Boolean).join(' '),
+          firstName,
+          lastName,
+          phone,
+          address,
+          city,
+          state,
+          zipCode,
+        },
+      });
+
+      await tx.account.create({
+        data: {
+          accountId: user.id,
+          providerId: 'credential',
+          userId: user.id,
+          password: hashedPassword,
+        },
+      });
+
+      return user;
     });
 
-    // 4. Create a Stripe Checkout Session
     const session = await this.createRegistrationCheckoutSession(newUser);
 
     return {
@@ -132,7 +139,10 @@ class AuthService {
       throw new Error('User not found');
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const account = await this.getCredentialAccount(user.id);
+    const isMatch = account?.password
+      ? await bcrypt.compare(password, account.password)
+      : false;
     if (!isMatch) {
       throw new Error('Incorrect password');
     }
@@ -181,14 +191,16 @@ class AuthService {
     throw new Error('Payment not completed');
   }
 
-  async login(email, password) {
+  async login(email, password, requestHeaders = {}) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Compare against the 'password' field
-    const isMatch = await bcrypt.compare(password, user.password);
+    const account = await this.getCredentialAccount(user.id);
+    const isMatch = account?.password
+      ? await bcrypt.compare(password, account.password)
+      : false;
     if (!isMatch) {
       throw new Error("Incorrect password");
     }
@@ -201,10 +213,33 @@ class AuthService {
       throw new Error(getInactiveAccountErrorCode(user.role));
     }
 
-    const tokens = this.generateTokens(user);
+    const response = await auth.api.signInEmail({
+      body: { email, password },
+      headers: fromNodeHeaders(requestHeaders),
+      asResponse: true,
+    });
+    const authPayload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(authPayload?.message || 'Unable to create session');
+    }
+
+    const sessionToken =
+      response.headers.get('set-auth-token')
+      || authPayload?.token;
+    if (!sessionToken) {
+      throw new Error('Better Auth did not return a session token');
+    }
+
+    const expiresAt = new Date(
+      Date.now() + betterAuthSessionExpiresIn * 1000,
+    ).toISOString();
 
     return {
-      ...tokens,
+      accessToken: sessionToken,
+      refreshToken: sessionToken,
+      accessTokenExpiresAt: expiresAt,
+      refreshTokenExpiresAt: expiresAt,
       user: sanitizeUser(user),
     };
   }
@@ -213,13 +248,14 @@ class AuthService {
     if (!refreshToken) throw new Error("No refresh token provided");
 
     try {
-      // Verify the refresh token
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-
-      // Ensure user exists and is active
-      const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+      const sessionData = await auth.api.getSession({
+        headers: new Headers({ Authorization: `Bearer ${refreshToken}` }),
+      });
+      const user = sessionData?.user?.id
+        ? await prisma.user.findUnique({ where: { id: sessionData.user.id } })
+        : null;
       if (!user) {
-        throw new Error('Invalid or expired refresh token');
+        throw new Error('Invalid or expired session');
       }
 
       if (user.status !== 'ACTIVE') {
@@ -227,8 +263,13 @@ class AuthService {
       }
 
       // Generate a new set of tokens
-      const tokens = this.generateTokens(user);
-      return tokens;
+      const expiresAt = sessionData.session.expiresAt;
+      return {
+        accessToken: refreshToken,
+        refreshToken,
+        accessTokenExpiresAt: expiresAt,
+        refreshTokenExpiresAt: expiresAt,
+      };
 
     } catch (error) {
       if (error.message === 'MemberAccountInactive' || error.message === 'AccountInactive') {
@@ -333,12 +374,31 @@ class AuthService {
         where: { id: record.userId },
         data: { password: hashedPassword },
       }),
+      prisma.account.upsert({
+        where: {
+          providerId_accountId: {
+            providerId: 'credential',
+            accountId: record.userId,
+          },
+        },
+        create: {
+          accountId: record.userId,
+          providerId: 'credential',
+          userId: record.userId,
+          password: hashedPassword,
+        },
+        update: { password: hashedPassword },
+      }),
+      // Password reset revokes all active Better Auth sessions.
+      prisma.session.deleteMany({
+        where: { userId: record.userId },
+      }),
       prisma.passwordResetOtp.deleteMany({
         where: { userId: record.userId },
       }),
     ]);
 
-    return { success: true };
+    return { success: true, userId: record.userId };
   }
 }
 

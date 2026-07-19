@@ -21,17 +21,50 @@ console.log(
 );
 logDatabaseDiagnostics('startup');
 
-const missingJwt = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'].filter(
-  (key) => !process.env[key],
-);
-if (missingJwt.length) {
-  console.error(
-    `[startup] MISSING JWT SECRETS: ${missingJwt.join(', ')}. `
-    + 'Login will fail with "secretOrPrivateKey must have a value". '
-    + 'Set these in Coolify Environment Variables.',
+const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+const betterAuthSecret = process.env.BETTER_AUTH_SECRET || '';
+const betterAuthUrl = process.env.BETTER_AUTH_URL || '';
+
+if (isProduction) {
+  if (betterAuthSecret.length < 32) {
+    throw new Error(
+      'BETTER_AUTH_SECRET must be set to at least 32 random characters in production',
+    );
+  }
+
+  let parsedAuthUrl;
+  try {
+    parsedAuthUrl = new URL(betterAuthUrl);
+  } catch {
+    throw new Error(
+      'BETTER_AUTH_URL must be the public backend origin, '
+      + 'for example https://api.example.com',
+    );
+  }
+
+  if (
+    parsedAuthUrl.protocol !== 'https:'
+    || (parsedAuthUrl.pathname !== '/' && parsedAuthUrl.pathname !== '')
+    || parsedAuthUrl.username
+    || parsedAuthUrl.password
+    || parsedAuthUrl.search
+    || parsedAuthUrl.hash
+  ) {
+    throw new Error(
+      'BETTER_AUTH_URL must be an HTTPS origin without /api or another path',
+    );
+  }
+}
+
+if (betterAuthSecret) {
+  console.log('[startup] Better Auth secret source=BETTER_AUTH_SECRET');
+} else if (!isProduction && process.env.JWT_ACCESS_SECRET) {
+  console.log(
+    '[startup] Better Auth secret source=legacy JWT_ACCESS_SECRET '
+    + '(development fallback only)',
   );
 } else {
-  console.log('[startup] JWT_ACCESS_SECRET and JWT_REFRESH_SECRET are set');
+  throw new Error('BETTER_AUTH_SECRET is missing');
 }
 
 await import('./server.js');

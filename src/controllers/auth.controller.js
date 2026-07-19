@@ -1,4 +1,5 @@
 import authService from '../services/auth.service.js';
+import { disconnectUserSockets } from '../socket/index.js';
 import logger from '../utils/logger.js';
 import { getInactiveAccountMessage } from '../utils/accountStatus.js';
 import { sendError, sendSuccess } from '../utils/apiResponse.js';
@@ -40,7 +41,7 @@ class AuthController {
     const { email, password } = req.body;
 
     try {
-      const result = await authService.login(email, password);
+      const result = await authService.login(email, password, req.headers);
       logger.info(`User logged in successfully: ${email}`);
       return sendSuccess(res, 'Login successful.', result);
     } catch (error) {
@@ -54,14 +55,14 @@ class AuthController {
 
       if (!knownAuthErrors.has(error.message)) {
         const { explainDatabaseError, logDatabaseDiagnostics } = await import('../config/database.js');
-        const isJwtSecretMissing =
-          error.message === 'secretOrPrivateKey must have a value'
-          || (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET);
-        const dbIssue = isJwtSecretMissing
+        const isAuthSecretMissing =
+          !process.env.BETTER_AUTH_SECRET
+          && !process.env.JWT_ACCESS_SECRET;
+        const dbIssue = isAuthSecretMissing
           ? {
-            type: 'JWT_SECRET_MISSING',
+            type: 'AUTH_SECRET_MISSING',
             hint:
-              'Set JWT_ACCESS_SECRET and JWT_REFRESH_SECRET in Coolify Environment Variables, then restart.',
+              'Set BETTER_AUTH_SECRET (at least 32 random characters) in Coolify, then restart.',
           }
           : explainDatabaseError(error);
 
@@ -73,8 +74,8 @@ class AuthController {
         console.error(`[login] dbIssueType=${dbIssue.type}`);
         console.error(`[login] hint=${dbIssue.hint}`);
         console.error(
-          `[login] JWT_ACCESS_SECRET set=${Boolean(process.env.JWT_ACCESS_SECRET)} `
-          + `JWT_REFRESH_SECRET set=${Boolean(process.env.JWT_REFRESH_SECRET)}`,
+          `[login] BETTER_AUTH_SECRET set=${Boolean(process.env.BETTER_AUTH_SECRET)} `
+          + `legacyFallback set=${Boolean(process.env.JWT_ACCESS_SECRET)}`,
         );
         if (error?.stack) {
           console.error(`[login] stack=${error.stack}`);
@@ -86,10 +87,10 @@ class AuthController {
           `Login failed for ${email} - [${dbIssue.type}] ${error.message} | hint: ${dbIssue.hint}`,
         );
 
-        if (dbIssue.type === 'JWT_SECRET_MISSING') {
+        if (dbIssue.type === 'AUTH_SECRET_MISSING') {
           return sendError(
             res,
-            'Server misconfigured: JWT_ACCESS_SECRET / JWT_REFRESH_SECRET are missing.',
+            'Server misconfigured: BETTER_AUTH_SECRET is missing.',
             500,
             { debugType: dbIssue.type },
           );
@@ -240,7 +241,8 @@ class AuthController {
     const { resetToken, password } = req.body;
 
     try {
-      await authService.resetPassword(resetToken, password);
+      const result = await authService.resetPassword(resetToken, password);
+      disconnectUserSockets(result.userId);
       logger.info('Password reset completed successfully');
       return sendSuccess(res, 'Password reset successfully.');
     } catch (error) {

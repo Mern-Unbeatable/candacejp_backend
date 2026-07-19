@@ -1,7 +1,10 @@
 import { Server } from 'socket.io';
 import logger from '../utils/logger.js';
 import { socketCorsOptions } from '../config/cors.js';
-import { authenticateSocket } from './middleware/auth.socket.js';
+import {
+  authenticateSocket,
+  revalidateSocketEvent,
+} from './middleware/auth.socket.js';
 import {
   registerMessageHandlers,
   registerPresenceHandlers,
@@ -20,6 +23,10 @@ export function initializeSocket(httpServer) {
   io.on('connection', (socket) => {
     logger.info(`Socket connected: ${socket.user.id}`);
 
+    // Session revocation, password changes, and status changes must also stop
+    // already-connected sockets, not only future handshakes.
+    socket.use((_, next) => revalidateSocketEvent(socket, next));
+
     registerPresenceHandlers(io, socket);
     registerMessageHandlers(io, socket);
 
@@ -32,4 +39,9 @@ export function initializeSocket(httpServer) {
 
 export function getIO() {
   return ioInstance;
+}
+
+export function disconnectUserSockets(userId) {
+  if (!ioInstance || !userId) return;
+  ioInstance.in(`user:${userId}`).disconnectSockets(true);
 }

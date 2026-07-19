@@ -61,6 +61,24 @@ async function main() {
       },
     });
 
+    for (const user of [admin, concierge, member]) {
+      await prisma.account.upsert({
+        where: {
+          providerId_accountId: {
+            providerId: 'credential',
+            accountId: user.id,
+          },
+        },
+        create: {
+          accountId: user.id,
+          providerId: 'credential',
+          userId: user.id,
+          password: defaultPasswordHash,
+        },
+        update: {},
+      });
+    }
+
     console.log('Database seeded successfully!');
     console.log('--- Initial Accounts ---');
     console.log(`Admin:     ${admin.email} / password123`);
