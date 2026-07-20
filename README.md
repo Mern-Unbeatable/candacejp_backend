@@ -1,132 +1,225 @@
-# Express + Prisma Backend Server
+# Raven Backend
 
-A Node.js backend server built with Express.js and Prisma ORM, following MVC architecture pattern.
+Express + Prisma API for the Raven private aviation membership platform. Handles auth, payments, travel opportunities, reservations, messaging, and admin/concierge workflows.
 
-## 📁 Project Structure
+## Stack
 
-```
-cbreezy_backend_web_safari/
+- **Node.js** `>=22.12.0` (ESM)
+- **Express 5**
+- **Prisma 7** + PostgreSQL (`pg` adapter)
+- **Better Auth** (session + bearer tokens)
+- **Stripe** (member registration fee)
+- **Socket.IO** (live messaging)
+- **AWS Secrets Manager** (optional DB / app secrets)
+- **Nodemailer** (password-reset OTP)
+
+## Project structure
+
+```text
+backend/
 ├── src/
-│   ├── routes/           # Route definitions
-│   ├── controllers/      # Request handlers
-│   ├── services/         # Business logic
-│   ├── app.js           # Express app configuration
-│   └── server.js        # Server entry point
+│   ├── bootstrap.js          # Entrypoint: load secrets, then start server
+│   ├── server.js             # HTTP + Socket.IO
+│   ├── app.js                # Express app, routes, CORS
+│   ├── config/               # CORS, DB pool, AWS secrets loader
+│   ├── controllers/
+│   ├── services/
+│   ├── routes/
+│   ├── middlewares/          # Auth (Better Auth session), Joi validation
+│   ├── validations/
+│   ├── lib/                  # Prisma client, Better Auth instance
+│   ├── socket/               # Socket.IO handlers + auth
+│   └── utils/
 ├── prisma/
-│   └── schema.prisma    # Database schema
-├── .env                 # Environment variables
-├── .env.example         # Example environment variables
-└── package.json         # Project dependencies
+│   ├── schema/               # Prisma schema (multi-file folder)
+│   ├── migrations/
+│   └── seed.js
+├── credentials.md            # Credential / AWS Secrets Manager guide
+├── .env.example
+└── package.json
 ```
 
-##  Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
-- Database (PostgreSQL, MySQL, or SQLite)
+- Node.js `>=22.12.0`
+- PostgreSQL
+- Stripe keys (for registration payment)
+- SMTP credentials (for forgot-password OTP)
 
-### Installation
+### Install
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   ```
-   Then edit `.env` and set your `DATABASE_URL`
-
-3. **Set up Prisma:**
-   ```bash
-   # Generate Prisma Client
-   npm run prisma:generate
-
-   # Run database migrations
-   npm run prisma:migrate
-   ```
-
-### Running the Server
-
-**Development mode (with auto-reload):**
 ```bash
-npm run dev
+npm install
+cp .env.example .env
 ```
 
-**Production mode:**
+Edit `.env` (see [Environment variables](#environment-variables) below).
+
+### Database
+
 ```bash
+# Generate Prisma Client
+npm run prisma:generate
+
+# Local / create migration
+npm run prisma:migrate
+
+# Deploy existing migrations (staging / production / Coolify)
+npm run prisma:migrate:deploy
+
+# Optional seed (admin / concierge / member)
+npx prisma db seed
+```
+
+Seeded accounts (password: `password123`):
+
+| Email | Role |
+|-------|------|
+| `admin@raven.com` | ADMIN |
+| `concierge@raven.com` | CONCIERGE |
+| `member@raven.com` | MEMBER |
+
+### Run
+
+```bash
+# Development (nodemon)
+npm run dev
+
+# Production
 npm start
 ```
 
-The server will start on `http://localhost:3000` (or the port specified in your `.env` file)
+Server: `http://localhost:3000` (or `PORT` from `.env`)  
+Health: `GET /health`
 
-##  Available Scripts
+## Scripts
 
-- `npm start` - Start the server in production mode
-- `npm run dev` - Start the server in development mode with nodemon
-- `npm run prisma:generate` - Generate Prisma Client
-- `npm run prisma:migrate` - Run database migrations
-- `npm run prisma:studio` - Open Prisma Studio (Database GUI)
+| Script | Description |
+|--------|-------------|
+| `npm start` | Start via `bootstrap.js` |
+| `npm run dev` | Dev with nodemon |
+| `npm run build` | `prisma generate` |
+| `npm run prisma:generate` | Generate Prisma Client |
+| `npm run prisma:migrate` | `prisma migrate dev` |
+| `npm run prisma:migrate:deploy` | Apply migrations (prod) |
+| `npm run prisma:studio` | Prisma Studio |
 
-##  API Endpoints
+## Architecture
 
-### Health Check
-- `GET /health` - Check server status
+MVC-style layers:
 
-### User Routes (Example)
-- `GET /api/users` - Get all users
-- `GET /api/users/:id` - Get user by ID
-- `POST /api/users` - Create new user
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
+1. **Routes** — endpoints + middleware (`auth`, Joi)
+2. **Controllers** — HTTP in/out, status codes
+3. **Services** — business logic + Prisma
+4. **Prisma** — PostgreSQL models
 
-##  Database Setup
+Startup order matters:
 
-1. Update your `DATABASE_URL` in `.env` file
-2. Define your models in `prisma/schema.prisma`
-3. Run migrations: `npm run prisma:migrate`
+1. `bootstrap.js` loads `.env` + AWS Secrets Manager
+2. Builds `DATABASE_URL`
+3. Dynamically imports `server.js` (Prisma reads `DATABASE_URL` at import time)
 
-### Example Database Model
+## Authentication
 
-Add models to `prisma/schema.prisma`:
+Sessions are managed by **Better Auth** (opaque bearer token). Raven keeps custom routes for app policy (roles, payment status, Stripe, OTP reset).
 
-```prisma
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+| Concern | Endpoint / behavior |
+|---------|---------------------|
+| Register + Stripe checkout | `POST /api/auth/register` |
+| Login (active users only) | `POST /api/auth/login` |
+| Resume unpaid registration | `POST /api/auth/resume-payment` |
+| Verify Stripe payment | `POST /api/auth/verify-payment` |
+| Refresh session token | `POST /api/auth/refresh` |
+| Forgot / OTP / reset password | `POST /api/auth/forgot-password`, `/verify-otp`, `/reset-password` |
+| Logout (revokes session + sockets) | `POST /api/better-auth/sign-out` |
+
+Protected REST routes expect:
+
+```http
+Authorization: Bearer <session-token>
 ```
 
-##  Architecture Pattern
+Roles: `MEMBER` | `CONCIERGE` | `ADMIN`  
+Account status: `PENDING_PAYMENT` | `ACTIVE` | `INACTIVE`  
+Only `ACTIVE` users get a session. Pending members receive HTTP `402` and must complete Stripe payment.
 
-This project follows the **MVC (Model-View-Controller)** pattern:
+Generate a Better Auth secret (min 32 characters):
 
-- **Routes** - Define API endpoints and map to controllers
-- **Controllers** - Handle HTTP requests/responses
-- **Services** - Contain business logic and database operations
-- **Prisma** - ORM for database operations (Model layer)
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+```
 
-##  Adding New Features
+## API overview
 
-1. **Create a new service** in `src/services/`
-2. **Create a new controller** in `src/controllers/`
-3. **Create routes** in `src/routes/`
-4. **Register routes** in `src/app.js`
+All JSON responses use:
 
-##  Environment Variables
+```json
+{ "success": true|false, "message": "...", "data": {} }
+```
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | 3000 |
-| `NODE_ENV` | Environment mode | development |
-| `DATABASE_URL` | Database connection string | Required |
+| Prefix | Access | Purpose |
+|--------|--------|---------|
+| `GET /health` | Public | Health check |
+| `/api/auth/*` | Public | Register, login, payment, password reset |
+| `POST /api/better-auth/sign-out` | Authenticated | Logout |
+| `/api/users/*` | Any active role | Profile, change password |
+| `/api/member/*` | MEMBER | Opportunities, reservations, preferences, custom travel |
+| `/api/staff/*` | CONCIERGE | Opportunities CRUD, member interests, confirmations |
+| `/api/admin/*` | ADMIN | Dashboard, concierge/members, support tickets |
+| `/api/notifications/*` | MEMBER | Notifications |
+| `/api/messages/*` | MEMBER / CONCIERGE | Messaging REST |
+| `POST /api/support` | Public | Contact form → support inbox |
 
-##  License
+Live messaging uses **Socket.IO** on the same HTTP server; handshake sends `auth: { token }` with the Better Auth session token.
+
+## Environment variables
+
+Copy from `.env.example`. Full credential / AWS notes: [`credentials.md`](./credentials.md).
+
+### Required locally
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | API port (default `3000`) |
+| `NODE_ENV` | `development` \| `production` |
+| `DATABASE_HOST` / `PORT` / `NAME` / `USER` | Postgres connection |
+| `DATABASE_PASSWORD` | Local password (if not using AWS) |
+| `BETTER_AUTH_SECRET` | ≥32 random chars |
+| `BETTER_AUTH_URL` | Backend **origin** only (no `/api`), e.g. `http://localhost:3000` |
+| `CLIENT_URL` | Frontend URL (CORS + Stripe redirects) |
+| `STRIPE_SECRET_KEY` | Stripe secret key |
+| `SMTP_*` | Email for OTP reset |
+
+### Production (Coolify)
+
+| Variable | Example |
+|----------|---------|
+| `BETTER_AUTH_URL` | `https://api-candacejp.maktechgroup.tech` |
+| `CLIENT_URL` | `https://candacejp.maktechgroup.tech` |
+| `DATABASE_SSLMODE` | `no-verify` (RDS) |
+| `AWS_SECRET_NAME` | Secrets Manager secret name |
+| `AWS_REGION` | `us-east-1` |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | If no IAM role |
+
+Credential precedence:
+
+1. Load `.env` / Coolify env  
+2. Load AWS Secrets Manager (`AWS_SECRET_NAME`)  
+3. **Same key in both → AWS wins**  
+4. Missing AWS keys stay on `.env`  
+5. Build internal `DATABASE_URL`
+
+Client AWS aliases (`RDS_Endpoint`, `RDS_UN`, `RDS_PW_Secret`) are mapped automatically.
+
+## Deploy notes
+
+1. Set env vars in Coolify (including `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`).
+2. Ensure migrations run (`prisma migrate deploy`) against the target DB.
+3. Redeploy **backend and frontend** together after auth changes; old JWT cookies are invalid — users must log in again.
+4. Do not commit `.env` or raw AWS keys.
+
+## License
 
 ISC
