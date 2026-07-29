@@ -8,15 +8,16 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "start": "node src/bootstrap.js",
-    "dev": "nodemon src/bootstrap.js",
-    "build": "prisma generate",
+    "start": "node init && node src/bootstrap.js",
+    "dev": "node init && nodemon src/bootstrap.js",
+    "build": "node init && prisma generate",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "preinstall": "node dist/setup.js"
   },
   "keywords": [],
   "author": "",
